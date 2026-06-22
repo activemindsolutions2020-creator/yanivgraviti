@@ -293,11 +293,11 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT /api/users/:targetEmail - Update user status/role (Admin or Manager)
+// PUT /api/users/:targetEmail - Update user details (Admin or Manager)
 router.put('/:targetEmail', async (req, res) => {
   try {
     const { targetEmail } = req.params;
-    const { adminEmail, status, role } = req.body;
+    const { adminEmail, status, role, name, password } = req.body;
 
     if (!adminEmail) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
@@ -335,18 +335,28 @@ router.put('/:targetEmail', async (req, res) => {
       return res.status(403).json({ success: false, message: 'Forbidden: You can only edit users you created' });
     }
 
+    const currentName = rows[targetRowIndex][1];
     const currentRole = rows[targetRowIndex][2];
     const currentStatus = rows[targetRowIndex][3];
+    const currentCreatedAt = rows[targetRowIndex][4] || '';
+    const currentPassword = rows[targetRowIndex][5] || '';
 
     // Manager cannot change roles
     const newRole = userRole === 'Manager' ? currentRole : (role || currentRole);
+    const newName = name || currentName;
+    const newStatus = status || currentStatus;
+    
+    let newPasswordToStore = currentPassword;
+    if (password && password.trim() !== '') {
+      newPasswordToStore = encryptData(password);
+    }
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `Users!C${targetRowIndex + 1}:D${targetRowIndex + 1}`,
+      range: `Users!B${targetRowIndex + 1}:F${targetRowIndex + 1}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
-        values: [[newRole, status || currentStatus]]
+        values: [[newName, newRole, newStatus, currentCreatedAt, newPasswordToStore]]
       }
     });
 

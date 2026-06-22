@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { Users, LogOut, ShieldCheck, UserPlus, ShieldBan, Settings } from "lucide-react";
+import { Users, LogOut, ShieldCheck, UserPlus, ShieldBan, Settings, Edit2 } from "lucide-react";
+import EditUserModal from "../../components/EditUserModal";
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession();
@@ -11,6 +12,8 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [editingUser, setEditingUser] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Create User State
   const [newEmail, setNewEmail] = useState("");
@@ -270,6 +273,14 @@ export default function AdminDashboard() {
                       </td>
                       <td className="p-4 text-slate-500 text-sm">{new Date(u.createdAt).toLocaleDateString('he-IL')}</td>
                       <td className="p-4 flex gap-2 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => { setEditingUser(u); setIsEditModalOpen(true); }}
+                          className="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-xs font-semibold hover:bg-blue-100 transition-colors flex items-center gap-1"
+                          title="ערוך משתמש"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                          ערוך
+                        </button>
                         {u.status !== 'Approved' && (
                           <button 
                             onClick={() => updateUser(u.email, 'Approved', u.role)}
@@ -300,6 +311,15 @@ export default function AdminDashboard() {
           </div>
         </div>
       </main>
+
+      <EditUserModal 
+        isOpen={isEditModalOpen} 
+        onClose={() => { setIsEditModalOpen(false); setEditingUser(null); }} 
+        user={editingUser} 
+        adminEmail={session?.user?.email} 
+        isAdmin={session?.user?.role === 'Admin'}
+        onSuccess={fetchUsers} 
+      />
     </div>
   );
 }
