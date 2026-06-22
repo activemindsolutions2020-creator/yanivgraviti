@@ -1,5 +1,5 @@
 import express from 'express';
-import { sheets } from '../server.js';
+import { sheets, drive } from '../server.js';
 
 const router = express.Router();
 
@@ -53,6 +53,39 @@ router.get('/', async (req, res) => {
     return res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
   }
 });
+
+// GET /api/invoices/download/:fileId
+router.get('/download/:fileId', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    const meta = await drive.files.get({
+      fileId,
+      fields: 'name, mimeType'
+    });
+    
+    const response = await drive.files.get({
+      fileId,
+      alt: 'media'
+    }, { responseType: 'stream' });
+    
+    res.setHeader('Content-Type', meta.data.mimeType);
+    
+    // We need to handle potential stream errors
+    response.data.on('error', err => {
+      console.error('Stream error:', err);
+      if (!res.headersSent) res.status(500).end();
+    });
+    
+    response.data.pipe(res);
+  } catch (error) {
+    console.error('Error downloading from Drive:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'Failed to download file' });
+    }
+  }
+});
+
 
 // DELETE /api/invoices/:id (Soft Delete - updates status to 'מבוטל')
 router.delete('/:id', async (req, res) => {

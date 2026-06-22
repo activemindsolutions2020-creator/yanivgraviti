@@ -73,39 +73,39 @@ export default function ReportTable({ userEmail }) {
 
       // 2. Process each invoice file
       for (const inv of items) {
-        if (!inv.fileUrl || inv.fileUrl === 'N/A' || inv.fileUrl === 'Unknown') continue;
-
+        if (!inv.driveFileId || inv.driveFileId === 'N/A' || inv.driveFileId === 'Unknown') continue;
+        
         try {
-          const proxyUrl = `/api/fetch-proxy?url=${encodeURIComponent(inv.fileUrl)}`;
-          const response = await fetch(proxyUrl);
-
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+          const fileUrl = `${apiUrl}/api/invoices/download/${inv.driveFileId}`;
+          const response = await fetch(fileUrl);
+          
           if (!response.ok) {
-            console.error(`Failed to fetch ${inv.fileUrl}`);
+            console.error(`Failed to fetch ${inv.driveFileId}`);
             continue;
           }
 
           const fileBuffer = await response.arrayBuffer();
           const contentType = response.headers.get('content-type') || '';
-          const urlLower = inv.fileUrl.toLowerCase();
 
-          if (contentType.includes('pdf') || urlLower.includes('.pdf')) {
+          if (contentType.includes('pdf')) {
             const externalPdf = await PDFDocument.load(fileBuffer);
             const copiedPages = await pdfDoc.copyPages(externalPdf, externalPdf.getPageIndices());
             copiedPages.forEach(page => pdfDoc.addPage(page));
-          }
-          else if (contentType.includes('image') || urlLower.match(/\.(jpeg|jpg|png|webp)$/)) {
+          } 
+          else if (contentType.includes('image')) {
             let externalImg;
             try {
-              if (contentType.includes('png') || urlLower.includes('.png')) {
+              if (contentType.includes('png')) {
                 externalImg = await pdfDoc.embedPng(fileBuffer);
               } else {
                 externalImg = await pdfDoc.embedJpg(fileBuffer);
               }
-
+              
               const page = pdfDoc.addPage([595.28, 841.89]);
               const margin = 40;
               const { width, height } = externalImg.scaleToFit(595.28 - (margin * 2), 841.89 - (margin * 2));
-
+              
               page.drawImage(externalImg, {
                 x: (595.28 / 2) - (width / 2),
                 y: (841.89 / 2) - (height / 2),
@@ -113,7 +113,7 @@ export default function ReportTable({ userEmail }) {
                 height,
               });
             } catch (imgErr) {
-              console.warn(`Could not embed image ${inv.fileUrl}, skipping.`, imgErr);
+              console.warn(`Could not embed image ${inv.driveFileId}, skipping.`, imgErr);
             }
           }
         } catch (fileErr) {
