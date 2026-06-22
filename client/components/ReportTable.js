@@ -71,17 +71,26 @@ export default function ReportTable({ userEmail }) {
       const tablePage = pdfDoc.addPage([tableImage.width, tableImage.height]);
       tablePage.drawImage(tableImage, { x: 0, y: 0, width: tableImage.width, height: tableImage.height });
 
+      let successCount = 0;
+      let failCount = 0;
+      let skipCount = 0;
+      let errMsgs = [];
+
       // 2. Process each invoice file
       for (const inv of items) {
-        if (!inv.driveFileId || inv.driveFileId === 'N/A' || inv.driveFileId === 'Unknown') continue;
+        if (!inv.driveFileId || inv.driveFileId === 'N/A' || inv.driveFileId === 'Unknown') {
+          skipCount++;
+          continue;
+        }
         
         try {
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
           const fileUrl = `${apiUrl}/api/invoices/download/${inv.driveFileId}`;
           const response = await fetch(fileUrl);
           
           if (!response.ok) {
-            console.error(`Failed to fetch ${inv.driveFileId}`);
+            failCount++;
+            errMsgs.push(`${inv.vendor} (Status: ${response.status})`);
             continue;
           }
 
@@ -92,6 +101,7 @@ export default function ReportTable({ userEmail }) {
             const externalPdf = await PDFDocument.load(fileBuffer);
             const copiedPages = await pdfDoc.copyPages(externalPdf, externalPdf.getPageIndices());
             copiedPages.forEach(page => pdfDoc.addPage(page));
+            successCount++;
           } 
           else if (contentType.includes('image')) {
             let externalImg;
@@ -112,13 +122,26 @@ export default function ReportTable({ userEmail }) {
                 width,
                 height,
               });
+              successCount++;
             } catch (imgErr) {
               console.warn(`Could not embed image ${inv.driveFileId}, skipping.`, imgErr);
+              failCount++;
+              errMsgs.push(`${inv.vendor} (Image Parse Error)`);
             }
+          } else {
+            failCount++;
+            errMsgs.push(`${inv.vendor} (Unknown type: ${contentType})`);
           }
         } catch (fileErr) {
+          failCount++;
+          errMsgs.push(`${inv.vendor} (Fetch Error: ${fileErr.message})`);
           console.error(`Error processing file for invoice ${inv.id}:`, fileErr);
         }
+      }
+
+      // Show summary of what was attached
+      if (failCount > 0) {
+        alert(`שים לב: צורפו ${successCount} קבלות. נכשלו ${failCount} קבלות.\nפירוט תקלות:\n${errMsgs.join('\n')}`);
       }
 
       // 3. Save and trigger download
