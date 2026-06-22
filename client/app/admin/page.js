@@ -14,6 +14,7 @@ export default function AdminDashboard() {
   // Create User State
   const [newEmail, setNewEmail] = useState("");
   const [newName, setNewName] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState("User");
   const [newStatus, setNewStatus] = useState("Approved");
   const [isCreating, setIsCreating] = useState(false);
@@ -67,10 +68,12 @@ export default function AdminDashboard() {
         targetEmail: newEmail,
         targetName: newName,
         targetRole: newRole,
-        targetStatus: newStatus
+        targetStatus: newStatus,
+        targetPassword: newPassword
       });
       setNewEmail("");
       setNewName("");
+      setNewPassword("");
       fetchUsers();
     } catch (err) {
       alert("שגיאה ביצירת משתמש (אולי הוא כבר קיים?)");
@@ -105,7 +108,7 @@ export default function AdminDashboard() {
 
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Create User Form */}
-        <form onSubmit={createUser} className="p-8 bg-[#edeef2] shadow-neu-flat rounded-3xl grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+        <form onSubmit={createUser} className="p-8 bg-[#edeef2] shadow-neu-flat rounded-3xl grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
           <div className="flex flex-col gap-2">
             <label className="text-gray-600 font-bold text-sm">שם מלא</label>
             <input 
@@ -124,6 +127,17 @@ export default function AdminDashboard() {
               onChange={e => setNewEmail(e.target.value)} 
               required
               placeholder="user@example.com" 
+              className="px-4 py-2 rounded-xl bg-[#edeef2] shadow-neu-pressed outline-none focus:shadow-neu-flat transition-all text-left"
+              dir="ltr"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-gray-600 font-bold text-sm">סיסמה</label>
+            <input 
+              type="password" 
+              value={newPassword} 
+              onChange={e => setNewPassword(e.target.value)} 
+              placeholder="******" 
               className="px-4 py-2 rounded-xl bg-[#edeef2] shadow-neu-pressed outline-none focus:shadow-neu-flat transition-all text-left"
               dir="ltr"
             />
@@ -155,7 +169,7 @@ export default function AdminDashboard() {
             disabled={isCreating}
             className="px-6 py-2 bg-blue-500 text-white font-bold rounded-xl shadow-md hover:bg-blue-600 transition-colors h-10 disabled:opacity-50"
           >
-            {isCreating ? "יוצר..." : "צור משתמש חדש"}
+            {isCreating ? "יוצר..." : "צור"}
           </button>
         </form>
 

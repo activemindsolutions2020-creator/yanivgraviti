@@ -10,16 +10,27 @@ const handler = NextAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     }),
     CredentialsProvider({
-      name: "כניסה ידנית (גיבוי)",
+      name: "כניסה עם סיסמה",
       credentials: {
-        username: { label: "שם משתמש", type: "text", placeholder: "admin" },
+        email: { label: "אימייל", type: "email", placeholder: "user@example.com" },
         password: { label: "סיסמה", type: "password" }
       },
       async authorize(credentials) {
-        if (credentials.username === "yaniv" && credentials.password === "123456") {
-          return { id: "1", name: "יניב (מנהל)", email: "activemind.solutions2020@gmail.com" };
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+          const res = await axios.post(`${apiUrl}/api/users/login`, {
+            email: credentials.email,
+            password: credentials.password
+          });
+          
+          if (res.data.success && res.data.data) {
+            return res.data.data; // { id, email, name, role, status }
+          }
+          return null;
+        } catch (err) {
+          console.error("Login failed:", err.response?.data?.message || err.message);
+          return null;
         }
-        return null;
       }
     })
   ],

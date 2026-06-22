@@ -1,5 +1,5 @@
 import express from 'express';
-import { sheets } from '../server.js';
+import { sheets, encryptData, decryptData } from '../server.js';
 
 const router = express.Router();
 
@@ -25,10 +25,10 @@ async function ensureUsersSheet() {
       // Add headers
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: 'Users!A1:E1',
+        range: 'Users!A1:F1',
         valueInputOption: 'USER_ENTERED',
         requestBody: {
-          values: [['Email', 'Name', 'Role', 'Status', 'CreatedAt']]
+          values: [['Email', 'Name', 'Role', 'Status', 'CreatedAt', 'Password']]
         }
       });
     }
@@ -115,6 +115,60 @@ router.post('/auth', async (req, res) => {
   }
 });
 
+// POST /api/users/login - Called by CredentialsProvider to authenticate
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ success: false, message: 'Email and password are required' });
+
+    await ensureUsersSheet();
+    const spreadsheetId = process.env.SPREADSHEET_ID;
+
+    const getResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Users!A:F',
+    });
+
+    const rows = getResponse.data.values || [];
+    let user = null;
+
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][0] === email) {
+        const encryptedPassword = rows[i][5];
+        if (!encryptedPassword) {
+          return res.status(401).json({ success: false, message: 'User has no password set (Use Google Login)' });
+        }
+        
+        try {
+          const decryptedPassword = decryptData(encryptedPassword);
+          if (decryptedPassword === password) {
+            user = {
+              id: String(i),
+              email: rows[i][0],
+              name: rows[i][1],
+              role: rows[i][2],
+              status: rows[i][3]
+            };
+            break;
+          }
+        } catch (decErr) {
+          console.error("Password decryption failed for user", email);
+        }
+      }
+    }
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
+    }
+
+    return res.status(200).json({ success: true, data: user });
+
+  } catch (error) {
+    console.error('Error in manual login:', error);
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+
 // GET /api/users - Get all users (Admin only)
 router.get('/', async (req, res) => {
   try {
@@ -164,7 +218,7 @@ router.get('/', async (req, res) => {
 // POST /api/users - Create a new user manually (Admin only)
 router.post('/', async (req, res) => {
   try {
-    const { adminEmail, targetEmail, targetName, targetRole, targetStatus } = req.body;
+    const { adminEmail, targetEmail, targetName, targetRole, targetStatus, targetPassword } = req.body;
     if (!adminEmail || !targetEmail) return res.status(400).json({ success: false, message: 'Missing required fields' });
 
     await ensureUsersSheet();
@@ -200,14 +254,17 @@ router.post('/', async (req, res) => {
       status: targetStatus || 'Approved',
       createdAt: new Date().toISOString()
     };
+    
+    // Encrypt password if provided
+    const passwordToStore = targetPassword ? encryptData(targetPassword) : "";
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Users!A:E',
+      range: 'Users!A:F',
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       requestBody: {
-        values: [[newUser.email, newUser.name, newUser.role, newUser.status, newUser.createdAt]]
+        values: [[newUser.email, newUser.name, newUser.role, newUser.status, newUser.createdAt, passwordToStore]]
       }
     });
 
