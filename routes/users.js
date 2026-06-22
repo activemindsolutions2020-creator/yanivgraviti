@@ -161,6 +161,64 @@ router.get('/', async (req, res) => {
   }
 });
 
+// POST /api/users - Create a new user manually (Admin only)
+router.post('/', async (req, res) => {
+  try {
+    const { adminEmail, targetEmail, targetName, targetRole, targetStatus } = req.body;
+    if (!adminEmail || !targetEmail) return res.status(400).json({ success: false, message: 'Missing required fields' });
+
+    await ensureUsersSheet();
+    const spreadsheetId = process.env.SPREADSHEET_ID;
+
+    // Fetch all users to verify admin and check if target already exists
+    const getResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Users!A:E',
+    });
+
+    const rows = getResponse.data.values || [];
+    
+    let isAdmin = false;
+    let targetExists = false;
+
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][0] === adminEmail && rows[i][2] === 'Admin' && rows[i][3] === 'Approved') {
+        isAdmin = true;
+      }
+      if (rows[i][0] === targetEmail) {
+        targetExists = true;
+      }
+    }
+
+    if (!isAdmin) return res.status(403).json({ success: false, message: 'Forbidden: Admin access required' });
+    if (targetExists) return res.status(409).json({ success: false, message: 'User already exists' });
+
+    const newUser = {
+      email: targetEmail,
+      name: targetName || 'Unknown',
+      role: targetRole || 'User',
+      status: targetStatus || 'Approved',
+      createdAt: new Date().toISOString()
+    };
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: 'Users!A:E',
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values: [[newUser.email, newUser.name, newUser.role, newUser.status, newUser.createdAt]]
+      }
+    });
+
+    return res.status(201).json({ success: true, message: 'User created successfully', data: newUser });
+
+  } catch (error) {
+    console.error('Error creating user:', error);
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+
 // PUT /api/users/:targetEmail - Update user status/role (Admin only)
 router.put('/:targetEmail', async (req, res) => {
   try {

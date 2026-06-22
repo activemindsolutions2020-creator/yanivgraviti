@@ -11,6 +11,13 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Create User State
+  const [newEmail, setNewEmail] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newRole, setNewRole] = useState("User");
+  const [newStatus, setNewStatus] = useState("Approved");
+  const [isCreating, setIsCreating] = useState(false);
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/");
@@ -50,6 +57,28 @@ export default function AdminDashboard() {
     }
   };
 
+  const createUser = async (e) => {
+    e.preventDefault();
+    if (!newEmail) return;
+    try {
+      setIsCreating(true);
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/users`, {
+        adminEmail: session.user.email,
+        targetEmail: newEmail,
+        targetName: newName,
+        targetRole: newRole,
+        targetStatus: newStatus
+      });
+      setNewEmail("");
+      setNewName("");
+      fetchUsers();
+    } catch (err) {
+      alert("שגיאה ביצירת משתמש (אולי הוא כבר קיים?)");
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   if (status === "loading" || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#edeef2]">
@@ -74,7 +103,62 @@ export default function AdminDashboard() {
         </button>
       </nav>
 
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto space-y-8">
+        {/* Create User Form */}
+        <form onSubmit={createUser} className="p-8 bg-[#edeef2] shadow-neu-flat rounded-3xl grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+          <div className="flex flex-col gap-2">
+            <label className="text-gray-600 font-bold text-sm">שם מלא</label>
+            <input 
+              type="text" 
+              value={newName} 
+              onChange={e => setNewName(e.target.value)} 
+              placeholder="שם המשתמש" 
+              className="px-4 py-2 rounded-xl bg-[#edeef2] shadow-neu-pressed outline-none focus:shadow-neu-flat transition-all"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-gray-600 font-bold text-sm">אימייל *</label>
+            <input 
+              type="email" 
+              value={newEmail} 
+              onChange={e => setNewEmail(e.target.value)} 
+              required
+              placeholder="user@example.com" 
+              className="px-4 py-2 rounded-xl bg-[#edeef2] shadow-neu-pressed outline-none focus:shadow-neu-flat transition-all text-left"
+              dir="ltr"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-gray-600 font-bold text-sm">תפקיד</label>
+            <select 
+              value={newRole} 
+              onChange={e => setNewRole(e.target.value)} 
+              className="px-4 py-2 rounded-xl bg-[#edeef2] shadow-neu-flat outline-none"
+            >
+              <option value="User">User</option>
+              <option value="Admin">Admin</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-gray-600 font-bold text-sm">סטטוס</label>
+            <select 
+              value={newStatus} 
+              onChange={e => setNewStatus(e.target.value)} 
+              className="px-4 py-2 rounded-xl bg-[#edeef2] shadow-neu-flat outline-none"
+            >
+              <option value="Approved">מאושר</option>
+              <option value="Pending">ממתין</option>
+            </select>
+          </div>
+          <button 
+            type="submit" 
+            disabled={isCreating}
+            className="px-6 py-2 bg-blue-500 text-white font-bold rounded-xl shadow-md hover:bg-blue-600 transition-colors h-10 disabled:opacity-50"
+          >
+            {isCreating ? "יוצר..." : "צור משתמש חדש"}
+          </button>
+        </form>
+
         <div className="p-8 bg-[#edeef2] shadow-neu-flat rounded-3xl">
           {error && <div className="text-red-500 mb-4">{error}</div>}
           
