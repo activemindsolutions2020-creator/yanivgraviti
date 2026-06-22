@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
+import { PDFDocument } from "pdf-lib";
 import ManualEntryModal from "./ManualEntryModal";
 import { ArrowUpDown, ArrowDown, ArrowUp, FileDown } from "lucide-react";
 
@@ -15,6 +16,7 @@ export default function ReportTable({ userEmail }) {
   const [editInvoice, setEditInvoice] = useState(null);
   const [expandedMonths, setExpandedMonths] = useState({});
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
+  const [exportingMonth, setExportingMonth] = useState(null);
 
   const handleSort = (key) => {
     setSortConfig(prev => {
@@ -44,23 +46,88 @@ export default function ReportTable({ userEmail }) {
     }
   };
 
-  const exportToPDF = async (monthYear) => {
+  const exportToPDF = async (monthYear, items) => {
     const element = document.getElementById(`month-container-${monthYear}`);
     if (!element) return;
     
     try {
+      setExportingMonth(monthYear);
+      
+      const pdfDoc = await PDFDocument.create();
+
+      // 1. Capture the table as an image
       const canvas = await html2canvas(element, { scale: 2, useCORS: true });
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
+      const tableImageBytes = await fetch(imgData).then(res => res.arrayBuffer());
       
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      // Embed table image
+      const tableImage = await pdfDoc.embedPng(tableImageBytes);
+      const tablePage = pdfDoc.addPage([tableImage.width, tableImage.height]);
+      tablePage.drawImage(tableImage, { x: 0, y: 0, width: tableImage.width, height: tableImage.height });
+
+      // 2. Process each invoice file
+      for (const inv of items) {
+        if (!inv.fileUrl || inv.fileUrl === 'N/A' || inv.fileUrl === 'Unknown') continue;
+        
+        try {
+          const proxyUrl = `/api/fetch-proxy?url=${encodeURIComponent(inv.fileUrl)}`;
+          const response = await fetch(proxyUrl);
+          
+          if (!response.ok) {
+            console.error(`Failed to fetch ${inv.fileUrl}`);
+            continue;
+          }
+
+          const fileBuffer = await response.arrayBuffer();
+          const contentType = response.headers.get('content-type') || '';
+          const urlLower = inv.fileUrl.toLowerCase();
+
+          if (contentType.includes('pdf') || urlLower.includes('.pdf')) {
+            const externalPdf = await PDFDocument.load(fileBuffer);
+            const copiedPages = await pdfDoc.copyPages(externalPdf, externalPdf.getPageIndices());
+            copiedPages.forEach(page => pdfDoc.addPage(page));
+          } 
+          else if (contentType.includes('image') || urlLower.match(/\.(jpeg|jpg|png|webp)$/)) {
+            let externalImg;
+            try {
+              if (contentType.includes('png') || urlLower.includes('.png')) {
+                externalImg = await pdfDoc.embedPng(fileBuffer);
+              } else {
+                externalImg = await pdfDoc.embedJpg(fileBuffer);
+              }
+              
+              const page = pdfDoc.addPage([595.28, 841.89]);
+              const margin = 40;
+              const { width, height } = externalImg.scaleToFit(595.28 - (margin * 2), 841.89 - (margin * 2));
+              
+              page.drawImage(externalImg, {
+                x: (595.28 / 2) - (width / 2),
+                y: (841.89 / 2) - (height / 2),
+                width,
+                height,
+              });
+            } catch (imgErr) {
+              console.warn(`Could not embed image ${inv.fileUrl}, skipping.`, imgErr);
+            }
+          }
+        } catch (fileErr) {
+          console.error(`Error processing file for invoice ${inv.id}:`, fileErr);
+        }
+      }
+
+      // 3. Save and trigger download
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `Report_${monthYear}_Full.pdf`;
+      link.click();
       
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Report_${monthYear}.pdf`);
     } catch (err) {
-      console.error("Error generating PDF", err);
-      alert("שגיאה ביצירת ה-PDF");
+      console.error("Error generating combined PDF", err);
+      alert("שגיאה ביצירת ה-PDF המשולב");
+    } finally {
+      setExportingMonth(null);
     }
   };
 
@@ -391,12 +458,22 @@ export default function ReportTable({ userEmail }) {
               </div>
               <div className="flex items-center gap-4 mt-4 md:mt-0">
                 <button 
-                  onClick={(e) => { e.stopPropagation(); exportToPDF(monthYear); }}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg flex items-center gap-2 text-sm font-semibold transition-colors border border-slate-200"
-                  title="ייצא ל-PDF"
+                  onClick={(e) => { e.stopPropagation(); exportToPDF(monthYear, items); }}
+                  disabled={exportingMonth === monthYear}
+                  className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold transition-colors border ${exportingMonth === monthYear ? 'bg-blue-50 text-blue-400 border-blue-200 cursor-not-allowed' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'}`}
+                  title="ייצא דוח מלא ל-PDF"
                 >
-                  <FileDown className="w-4 h-4" />
-                  PDF
+                  {exportingMonth === monthYear ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                      מייצר PDF...
+                    </>
+                  ) : (
+                    <>
+                      <FileDown className="w-4 h-4" />
+                      PDF מלא
+                    </>
+                  )}
                 </button>
                 <div className="px-6 py-2 rounded-lg bg-emerald-50 border border-emerald-100 flex flex-col items-center">
                   <span className="text-xs font-semibold text-emerald-600">הכנסות</span>
