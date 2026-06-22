@@ -25,12 +25,20 @@ export default function Dashboard() {
       <div className="min-h-screen flex items-center justify-center bg-[#edeef2]">
         <div dir="rtl" className="p-10 shadow-neu-flat rounded-3xl text-center w-full max-w-md">
           <h1 className="text-3xl font-bold text-gray-700 mb-8">Smart Insolvency AI</h1>
-          <button
-            onClick={() => signIn("google")}
-            className="w-full px-8 py-4 bg-[#edeef2] shadow-neu-flat rounded-xl font-bold text-gray-700 hover:shadow-neu-pressed transition-all"
-          >
-            התחבר באמצעות Google
-          </button>
+          <div className="flex flex-col gap-4">
+            <button
+              onClick={() => signIn("google")}
+              className="w-full px-8 py-4 bg-[#edeef2] shadow-neu-flat rounded-xl font-bold text-gray-700 hover:shadow-neu-pressed transition-all"
+            >
+              התחבר באמצעות Google
+            </button>
+            <button
+              onClick={() => signIn()}
+              className="w-full px-8 py-4 bg-[#edeef2] shadow-neu-flat rounded-xl font-bold text-gray-500 hover:shadow-neu-pressed transition-all text-sm"
+            >
+              התחברות חלופית (שם משתמש וסיסמה)
+            </button>
+          </div>
         </div>
       </div>
     );
