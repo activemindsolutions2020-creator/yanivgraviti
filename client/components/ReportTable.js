@@ -58,10 +58,17 @@ export default function ReportTable({ userEmail }) {
       // 1. Capture the table as an image
       const canvas = await html2canvas(element, { scale: 2, useCORS: true });
       const imgData = canvas.toDataURL('image/png');
-      const tableImageBytes = await fetch(imgData).then(res => res.arrayBuffer());
+      
+      const base64Data = imgData.split(',')[1];
+      const binaryString = window.atob(base64Data);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
       
       // Embed table image
-      const tableImage = await pdfDoc.embedPng(tableImageBytes);
+      const tableImage = await pdfDoc.embedPng(bytes);
       const tablePage = pdfDoc.addPage([tableImage.width, tableImage.height]);
       tablePage.drawImage(tableImage, { x: 0, y: 0, width: tableImage.width, height: tableImage.height });
 
@@ -125,7 +132,7 @@ export default function ReportTable({ userEmail }) {
       
     } catch (err) {
       console.error("Error generating combined PDF", err);
-      alert("שגיאה ביצירת ה-PDF המשולב");
+      alert(`שגיאה ביצירת ה-PDF המשולב: ${err.message}`);
     } finally {
       setExportingMonth(null);
     }
