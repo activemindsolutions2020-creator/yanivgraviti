@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import ManualEntryModal from "./ManualEntryModal";
+import { ArrowUpDown, ArrowDown, ArrowUp } from "lucide-react";
 
 export default function ReportTable({ userEmail }) {
   const [invoices, setInvoices] = useState([]);
@@ -11,6 +12,35 @@ export default function ReportTable({ userEmail }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editInvoice, setEditInvoice] = useState(null);
   const [expandedMonths, setExpandedMonths] = useState({});
+  const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
+
+  const handleSort = (key) => {
+    setSortConfig(prev => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
+  const parseDate = (dateStr) => {
+    if (!dateStr || dateStr === "N/A" || dateStr === "Unknown") return 0;
+    try {
+        if (dateStr.includes('/')) {
+          const parts = dateStr.split('/');
+          if (parts.length === 3) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            let year = parseInt(parts[2], 10);
+            if (year < 100) year += 2000;
+            return new Date(year, month, day).getTime();
+          }
+        }
+        return new Date(dateStr).getTime() || 0;
+    } catch {
+        return 0;
+    }
+  };
 
   const toggleMonth = (monthYear) => {
     setExpandedMonths(prev => ({
@@ -256,6 +286,42 @@ export default function ReportTable({ userEmail }) {
         const { items, totalIncome, totalExpense, categories } = groupedData[monthYear];
         const isExpanded = expandedMonths[monthYear] !== false; // Default to true (expanded)
         
+        const sortedItems = [...items].sort((a, b) => {
+          let valA = a[sortConfig.key];
+          let valB = b[sortConfig.key];
+          
+          if (sortConfig.key === 'date') {
+              valA = parseDate(a.date);
+              valB = parseDate(b.date);
+          } else if (sortConfig.key === 'amount') {
+              valA = a.amount || 0;
+              valB = b.amount || 0;
+          } else if (sortConfig.key === 'displayCategory') {
+              valA = a.displayCategory || "";
+              valB = b.displayCategory || "";
+          } else if (sortConfig.key === 'type') {
+              valA = a.type || "";
+              valB = b.type || "";
+          } else if (sortConfig.key === 'vendor') {
+              valA = a.vendor || "";
+              valB = b.vendor || "";
+          } else if (sortConfig.key === 'status') {
+              valA = translateStatus(a.status) || "";
+              valB = translateStatus(b.status) || "";
+          }
+          
+          if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        });
+
+        const SortIcon = ({ columnKey }) => {
+          if (sortConfig.key !== columnKey) return <ArrowUpDown className="w-4 h-4 inline-block text-gray-400 opacity-50 ml-1" />;
+          return sortConfig.direction === 'asc' 
+            ? <ArrowUp className="w-4 h-4 inline-block text-blue-600 ml-1" />
+            : <ArrowDown className="w-4 h-4 inline-block text-blue-600 ml-1" />;
+        };
+
         return (
           <div key={monthYear} className="bg-white border border-slate-200 shadow-sm rounded-2xl p-8 transition-all duration-500">
             {/* Header (Clickable for Accordion) */}
@@ -306,17 +372,29 @@ export default function ReportTable({ userEmail }) {
               <table className="w-full text-right border-collapse">
                 <thead>
                   <tr className="border-b-2 border-gray-300">
-                    <th className="py-4 px-4 font-bold text-gray-600">תאריך</th>
-                    <th className="py-4 px-4 font-bold text-gray-600">ספק/לקוח</th>
-                    <th className="py-4 px-4 font-bold text-gray-600">קטגוריה</th>
-                    <th className="py-4 px-4 font-bold text-gray-600">סוג מסמך</th>
-                    <th className="py-4 px-4 font-bold text-gray-600">סכום</th>
-                    <th className="py-4 px-4 font-bold text-gray-600">סטטוס</th>
+                    <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('date')}>
+                      <div className="flex items-center justify-end gap-1">תאריך <SortIcon columnKey="date" /></div>
+                    </th>
+                    <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('vendor')}>
+                      <div className="flex items-center justify-end gap-1">ספק/לקוח <SortIcon columnKey="vendor" /></div>
+                    </th>
+                    <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('displayCategory')}>
+                      <div className="flex items-center justify-end gap-1">קטגוריה <SortIcon columnKey="displayCategory" /></div>
+                    </th>
+                    <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('type')}>
+                      <div className="flex items-center justify-end gap-1">סוג מסמך <SortIcon columnKey="type" /></div>
+                    </th>
+                    <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('amount')}>
+                      <div className="flex items-center justify-end gap-1">סכום <SortIcon columnKey="amount" /></div>
+                    </th>
+                    <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('status')}>
+                      <div className="flex items-center justify-end gap-1">סטטוס <SortIcon columnKey="status" /></div>
+                    </th>
                     <th className="py-4 px-4 font-bold text-gray-600">פעולות</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((inv, idx) => (
+                  {sortedItems.map((inv, idx) => (
                     <tr key={idx} className="border-b border-gray-200 hover:bg-[#e4e5e9] transition-colors">
                       <td className="py-4 px-4 text-gray-700">{inv.date}</td>
                       <td className="py-4 px-4 text-gray-800 font-semibold">{inv.vendor}</td>
