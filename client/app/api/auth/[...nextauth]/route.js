@@ -12,7 +12,7 @@ const handler = NextAuth({
     CredentialsProvider({
       name: "כניסה עם סיסמה",
       credentials: {
-        email: { label: "אימייל", type: "email", placeholder: "user@example.com" },
+        email: { label: "שם משתמש (אימייל)", type: "email", placeholder: "user@example.com" },
         password: { label: "סיסמה", type: "password" }
       },
       async authorize(credentials) {

@@ -108,19 +108,9 @@ export default function AdminDashboard() {
 
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Create User Form */}
-        <form onSubmit={createUser} className="p-8 bg-[#edeef2] shadow-neu-flat rounded-3xl grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+        <form onSubmit={createUser} className="p-8 bg-[#edeef2] shadow-neu-flat rounded-3xl grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
           <div className="flex flex-col gap-2">
-            <label className="text-gray-600 font-bold text-sm">שם מלא</label>
-            <input 
-              type="text" 
-              value={newName} 
-              onChange={e => setNewName(e.target.value)} 
-              placeholder="שם המשתמש" 
-              className="px-4 py-2 rounded-xl bg-[#edeef2] shadow-neu-pressed outline-none focus:shadow-neu-flat transition-all"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-gray-600 font-bold text-sm">אימייל *</label>
+            <label className="text-gray-600 font-bold text-sm">שם משתמש (אימייל) *</label>
             <input 
               type="email" 
               value={newEmail} 

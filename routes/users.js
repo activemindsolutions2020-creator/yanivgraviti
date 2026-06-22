@@ -249,7 +249,7 @@ router.post('/', async (req, res) => {
 
     const newUser = {
       email: targetEmail,
-      name: targetName || 'Unknown',
+      name: targetName || targetEmail,
       role: targetRole || 'User',
       status: targetStatus || 'Approved',
       createdAt: new Date().toISOString()
