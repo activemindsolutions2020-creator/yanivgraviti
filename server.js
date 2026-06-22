@@ -8,6 +8,7 @@ import analyzeRoutes from './routes/analyze.js';
 import reportRoutes from './routes/report.js';
 import invoicesRoutes from './routes/invoices.js';
 import manualRoutes from './routes/manual.js';
+import usersRoutes from './routes/users.js';
 
 // Initialize environment variables
 dotenv.config();
@@ -133,6 +134,7 @@ app.use('/api/analyze', analyzeRoutes);
 app.use('/api/report', reportRoutes);
 app.use('/api/invoices', invoicesRoutes);
 app.use('/api/manual', manualRoutes);
+app.use('/api/users', usersRoutes);
 
 // Start Cron Service dynamically after all exports (like sheets) are fully initialized
 import('./services/cron.js').catch(err => console.error('Failed to load cron service:', err));

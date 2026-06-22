@@ -46,14 +46,24 @@ export default function Dashboard() {
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#edeef2] p-8 pb-20">
-      <nav className="flex flex-col md:flex-row justify-between items-center mb-10 p-6 shadow-neu-flat rounded-2xl max-w-6xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-700 mb-4 md:mb-0">שלום, {session.user.name}</h1>
-        <button
-          onClick={() => signOut()}
-          className="px-8 py-3 bg-[#edeef2] shadow-neu-flat rounded-xl font-bold text-gray-700 hover:shadow-neu-pressed transition-all"
-        >
-          התנתק
-        </button>
+      <nav className="flex flex-col md:flex-row justify-between items-center mb-10 p-6 shadow-neu-flat rounded-2xl max-w-6xl mx-auto gap-4 md:gap-0">
+        <h1 className="text-2xl font-bold text-gray-700">שלום, {session.user.name}</h1>
+        <div className="flex gap-4">
+          {session.user.role === 'Admin' && (
+            <a
+              href="/admin"
+              className="px-8 py-3 bg-blue-100 shadow-neu-flat rounded-xl font-bold text-blue-700 hover:shadow-neu-pressed transition-all"
+            >
+              פאנל ניהול מנהל
+            </a>
+          )}
+          <button
+            onClick={() => signOut()}
+            className="px-8 py-3 bg-[#edeef2] shadow-neu-flat rounded-xl font-bold text-gray-700 hover:shadow-neu-pressed transition-all"
+          >
+            התנתק
+          </button>
+        </div>
       </nav>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-6xl mx-auto">
