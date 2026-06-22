@@ -38,5 +38,3 @@ test-append*.js
 test-pdf.js
 test-perms.js
 check-sheets.js
-Dropzone.js
-ProfileForm.js
