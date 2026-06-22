@@ -7,9 +7,14 @@ module.exports = {
   ],
   theme: {
     extend: {
-      boxShadow: {
-        'neu-flat': '8px 8px 16px #c9cacd, -8px -8px 16px #ffffff',
-        'neu-pressed': 'inset 4px 4px 8px #c9cacd, inset -4px -4px 8px #ffffff'
+      colors: {
+        slate: {
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          800: '#1e293b',
+          900: '#0f172a',
+        }
       }
     },
   },

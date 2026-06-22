@@ -40,15 +40,15 @@ export default function ProfileForm({ userEmail }) {
   };
 
   return (
-    <div className="p-8 bg-[#edeef2] shadow-neu-flat rounded-3xl" dir="rtl">
-      <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="p-8 bg-white border border-slate-200 shadow-sm rounded-2xl" dir="rtl">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <input
           type="text"
           name="idNumber"
           placeholder="תעודת זהות"
           value={formData.idNumber}
           onChange={handleChange}
-          className="w-full p-4 rounded-xl bg-[#edeef2] shadow-neu-pressed outline-none text-gray-700"
+          className="w-full p-3.5 rounded-lg border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700"
         />
         <input
           type="text"
@@ -56,7 +56,7 @@ export default function ProfileForm({ userEmail }) {
           placeholder="מספר תיק"
           value={formData.caseNumber}
           onChange={handleChange}
-          className="w-full p-4 rounded-xl bg-[#edeef2] shadow-neu-pressed outline-none text-gray-700"
+          className="w-full p-3.5 rounded-lg border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700"
         />
         <div className="relative">
           <input
@@ -65,13 +65,13 @@ export default function ProfileForm({ userEmail }) {
             placeholder="טוקן הזדהות - ממשל זמין"
             value={formData.govToken}
             onChange={handleChange}
-            className="w-full p-4 rounded-xl bg-[#edeef2] shadow-neu-pressed outline-none text-gray-700"
+            className="w-full p-3.5 rounded-lg border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700"
           />
           <a 
             href="https://my.gov.il/" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-500 hover:underline transition-colors bg-[#edeef2] px-2"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors bg-slate-50 px-2"
           >
             איך משיגים?
           </a>
@@ -83,26 +83,26 @@ export default function ProfileForm({ userEmail }) {
             placeholder="מפתח API - בינה מלאכותית (Gemini)"
             value={formData.geminiApiKey}
             onChange={handleChange}
-            className="w-full p-4 pl-20 rounded-xl bg-[#edeef2] shadow-neu-pressed outline-none text-gray-700"
+            className="w-full p-3.5 pl-20 rounded-lg border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700"
           />
           <a 
             href="https://aistudio.google.com/app/apikey" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-500 hover:underline transition-colors bg-[#edeef2] px-2"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors bg-slate-50 px-2"
           >
             קבל מפתח
           </a>
         </div>
         
-        <button type="submit" className="w-full px-6 py-3 rounded-xl bg-blue-500 shadow-neu-flat font-bold text-white hover:bg-blue-600 transition-all">
+        <button type="submit" className="w-full px-6 py-3.5 rounded-lg bg-blue-600 text-white font-medium shadow-sm hover:bg-blue-700 transition-all">
           שמור הגדרות
         </button>
         
         {status && (
-          <p className={`mt-4 text-center font-semibold ${status.type === 'error' ? 'text-red-500' : 'text-green-600'}`}>
+          <div className={`mt-4 p-3 rounded-lg text-center font-medium text-sm ${status.type === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
             {status.message}
-          </p>
+          </div>
         )}
       </form>
     </div>

@@ -146,20 +146,20 @@ export default function ManualEntryModal({ isOpen, onClose, userEmail, onSuccess
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm transition-all" dir="rtl">
-      <div className="bg-[#edeef2] shadow-neu-flat rounded-3xl p-8 w-full max-w-lg mx-4 transform transition-all relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-all" dir="rtl">
+      <div className="bg-white border border-slate-200 shadow-xl rounded-2xl p-8 w-full max-w-lg mx-4 transform transition-all relative">
         
         <button 
           onClick={onClose}
-          className="absolute top-6 left-6 w-10 h-10 rounded-full bg-[#edeef2] shadow-neu-flat flex items-center justify-center text-gray-500 hover:text-red-500 hover:shadow-neu-pressed transition-all"
+          className="absolute top-6 left-6 w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-red-600 hover:bg-red-50 transition-all"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
 
-        <h2 className="text-2xl font-extrabold text-gray-700 mb-6">הוספת תנועה ידנית</h2>
+        <h2 className="text-2xl font-bold text-slate-800 mb-6">הוספת תנועה ידנית</h2>
 
         {error && (
-          <div className="mb-6 p-4 rounded-xl bg-red-50 text-red-600 border border-red-100 text-sm">
+          <div className="mb-6 p-3 rounded-lg bg-red-50 text-red-600 border border-red-100 text-sm font-medium">
             {error}
           </div>
         )}
@@ -170,14 +170,14 @@ export default function ManualEntryModal({ isOpen, onClose, userEmail, onSuccess
             <button
               type="button"
               onClick={() => handleTypeChange("הוצאה")}
-              className={`flex-1 py-3 rounded-xl font-bold transition-all ${formData.type === "הוצאה" ? "bg-red-100 text-red-600 shadow-neu-pressed border border-red-200" : "bg-[#edeef2] shadow-neu-flat text-gray-500 hover:shadow-neu-pressed"}`}
+              className={`flex-1 py-3.5 rounded-lg font-semibold transition-all border ${formData.type === "הוצאה" ? "bg-rose-50 text-rose-700 border-rose-200" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`}
             >
               הוצאה
             </button>
             <button
               type="button"
               onClick={() => handleTypeChange("הכנסה")}
-              className={`flex-1 py-3 rounded-xl font-bold transition-all ${formData.type === "הכנסה" ? "bg-green-100 text-green-600 shadow-neu-pressed border border-green-200" : "bg-[#edeef2] shadow-neu-flat text-gray-500 hover:shadow-neu-pressed"}`}
+              className={`flex-1 py-3.5 rounded-lg font-semibold transition-all border ${formData.type === "הכנסה" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`}
             >
               הכנסה
             </button>
@@ -185,18 +185,18 @@ export default function ManualEntryModal({ isOpen, onClose, userEmail, onSuccess
 
           <div className="grid grid-cols-2 gap-5">
             <div>
-              <label className="block text-sm font-bold text-gray-600 mb-2">תאריך *</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">תאריך *</label>
               <input
                 type="date"
                 name="date"
                 value={formData.date}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-[#edeef2] rounded-xl shadow-neu-pressed text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-600 mb-2">סכום *</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">סכום *</label>
               <div className="relative">
                 <input
                   type="number"
@@ -205,33 +205,33 @@ export default function ManualEntryModal({ isOpen, onClose, userEmail, onSuccess
                   value={formData.amount}
                   onChange={handleChange}
                   placeholder="0.00"
-                  className="w-full px-4 py-3 pl-12 bg-[#edeef2] rounded-xl shadow-neu-pressed text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full px-4 py-3 pl-12 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
-                <span className="absolute left-4 top-3 text-gray-500 font-bold">₪</span>
+                <span className="absolute left-4 top-3.5 text-slate-500 font-bold">₪</span>
               </div>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-600 mb-2">ספק / גוף / לקוח</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">ספק / גוף / לקוח</label>
             <input
               type="text"
               name="vendor"
               value={formData.vendor}
               onChange={handleChange}
               placeholder="לדוגמה: דואר ישראל, לקוח פרטי..."
-              className="w-full px-4 py-3 bg-[#edeef2] rounded-xl shadow-neu-pressed text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-600 mb-2">קטגוריה</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">קטגוריה</label>
             <select
               name="category"
               value={formData.category}
               onChange={handleChange}
-              className="w-full px-4 py-3 bg-[#edeef2] rounded-xl shadow-neu-pressed text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             >
               {currentCategories.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
@@ -239,11 +239,11 @@ export default function ManualEntryModal({ isOpen, onClose, userEmail, onSuccess
             </select>
           </div>
 
-          <div className="pt-4">
+          <div className="pt-6">
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-blue-500 text-white rounded-xl shadow-neu-flat font-bold hover:bg-blue-600 transition-all disabled:bg-gray-400 flex justify-center items-center gap-2"
+              className="w-full py-4 bg-blue-600 text-white rounded-lg shadow-sm font-medium hover:bg-blue-700 transition-all disabled:bg-slate-400 flex justify-center items-center gap-2"
             >
               {loading ? (
                 <>

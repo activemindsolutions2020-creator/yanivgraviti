@@ -63,15 +63,15 @@ export default function ReportTable({ userEmail }) {
   };
   if (loading) {
     return (
-      <div className="p-8 bg-[#edeef2] shadow-neu-flat rounded-3xl text-center">
-        <span className="text-xl font-bold text-gray-500 animate-pulse">טוען נתונים היסטוריים...</span>
+      <div className="p-8 bg-white border border-slate-200 shadow-sm rounded-2xl text-center">
+        <span className="text-xl font-bold text-slate-500 animate-pulse">טוען נתונים היסטוריים...</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-8 bg-[#edeef2] shadow-neu-flat rounded-3xl text-center">
+      <div className="p-8 bg-white border border-slate-200 shadow-sm rounded-2xl text-center">
         <span className="text-xl font-bold text-red-500">{error}</span>
       </div>
     );
@@ -79,8 +79,8 @@ export default function ReportTable({ userEmail }) {
 
   if (invoices.length === 0) {
     return (
-      <div className="p-8 bg-[#edeef2] shadow-neu-flat rounded-3xl text-center">
-        <span className="text-xl font-bold text-gray-500">עדיין לא הועלו חשבוניות או מסמכים למערכת.</span>
+      <div className="p-8 bg-white border border-slate-200 shadow-sm rounded-2xl text-center">
+        <span className="text-xl font-medium text-slate-500">עדיין לא הועלו חשבוניות או מסמכים למערכת.</span>
       </div>
     );
   }
@@ -224,19 +224,19 @@ export default function ReportTable({ userEmail }) {
 
   return (
     <div className="space-y-10">
-      <div className="flex flex-col sm:flex-row justify-between items-center bg-[#edeef2] shadow-neu-flat rounded-2xl p-6 gap-4">
-        <h2 className="text-2xl font-bold text-gray-700">היסטוריית חשבוניות ודוחות</h2>
+      <div className="flex flex-col sm:flex-row justify-between items-center bg-white border border-slate-200 shadow-sm rounded-2xl p-6 gap-4">
+        <h2 className="text-2xl font-bold text-slate-800">היסטוריית חשבוניות ודוחות</h2>
         <div className="flex gap-4">
           <button 
             onClick={() => { setEditInvoice(null); setIsModalOpen(true); }}
-            className="px-6 py-2 bg-blue-500 rounded-xl font-bold text-white hover:bg-blue-600 shadow-neu-flat transition-all flex items-center gap-2"
+            className="px-6 py-2.5 bg-blue-600 rounded-lg font-medium text-white hover:bg-blue-700 shadow-sm transition-all flex items-center gap-2"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
             הוסף תנועה ידנית
           </button>
           <button 
             onClick={fetchInvoices}
-            className="px-6 py-2 bg-[#edeef2] shadow-neu-flat rounded-xl font-bold text-gray-700 hover:shadow-neu-pressed transition-all flex items-center gap-2"
+            className="px-6 py-2.5 bg-slate-100 border border-slate-200 rounded-lg font-medium text-slate-700 hover:bg-slate-200 transition-all flex items-center gap-2"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
             רענן נתונים
@@ -257,26 +257,26 @@ export default function ReportTable({ userEmail }) {
         const isExpanded = expandedMonths[monthYear] !== false; // Default to true (expanded)
         
         return (
-          <div key={monthYear} className="bg-[#edeef2] shadow-neu-flat rounded-3xl p-8 transition-all duration-500">
+          <div key={monthYear} className="bg-white border border-slate-200 shadow-sm rounded-2xl p-8 transition-all duration-500">
             {/* Header (Clickable for Accordion) */}
             <div 
-              className="flex flex-col md:flex-row justify-between items-center mb-6 cursor-pointer group"
+              className="flex flex-col md:flex-row justify-between items-center cursor-pointer group"
               onClick={() => toggleMonth(monthYear)}
             >
               <div className="flex items-center gap-3">
-                <h3 className="text-2xl font-extrabold text-gray-800 group-hover:text-blue-500 transition-colors">{monthYear}</h3>
-                <div className={`p-1 bg-[#edeef2] shadow-neu-pressed rounded-full text-gray-500 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <h3 className="text-2xl font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{monthYear}</h3>
+                <div className={`p-1 bg-slate-100 rounded-full text-slate-500 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                 </div>
               </div>
               <div className="flex gap-4 mt-4 md:mt-0">
-                <div className="px-6 py-3 rounded-xl bg-[#edeef2] shadow-neu-pressed flex flex-col items-center">
-                  <span className="text-sm font-semibold text-gray-500">הכנסות</span>
-                  <span className="text-lg font-bold text-green-600">₪{totalIncome.toFixed(2)}</span>
+                <div className="px-6 py-2 rounded-lg bg-emerald-50 border border-emerald-100 flex flex-col items-center">
+                  <span className="text-xs font-semibold text-emerald-600">הכנסות</span>
+                  <span className="text-lg font-bold text-emerald-700">₪{totalIncome.toFixed(2)}</span>
                 </div>
-                <div className="px-6 py-3 rounded-xl bg-[#edeef2] shadow-neu-pressed flex flex-col items-center">
-                  <span className="text-sm font-semibold text-gray-500">הוצאות</span>
-                  <span className="text-lg font-bold text-red-500">₪{totalExpense.toFixed(2)}</span>
+                <div className="px-6 py-2 rounded-lg bg-rose-50 border border-rose-100 flex flex-col items-center">
+                  <span className="text-xs font-semibold text-rose-600">הוצאות</span>
+                  <span className="text-lg font-bold text-rose-700">₪{totalExpense.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -292,10 +292,10 @@ export default function ReportTable({ userEmail }) {
                   {Object.entries(categories)
                     .sort((a, b) => b[1] - a[1]) // Sort by amount descending
                     .map(([catName, amount]) => (
-                      <div key={catName} className="flex items-center gap-2 px-4 py-2 bg-[#edeef2] shadow-neu-flat rounded-full">
+                      <div key={catName} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
                         <span className="text-lg">{getCategoryEmoji(catName)}</span>
-                        <span className="text-sm font-semibold text-gray-700">{catName}:</span>
-                        <span className="text-sm font-bold text-red-500">₪{amount.toFixed(2)}</span>
+                        <span className="text-sm font-medium text-slate-700">{catName}:</span>
+                        <span className="text-sm font-bold text-rose-600">₪{amount.toFixed(2)}</span>
                       </div>
                   ))}
                 </div>
@@ -336,10 +336,10 @@ export default function ReportTable({ userEmail }) {
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex gap-2 justify-end">
-                          <button onClick={() => { setEditInvoice(inv); setIsModalOpen(true); }} className="p-2 bg-[#edeef2] text-blue-500 rounded-xl shadow-neu-flat hover:shadow-neu-pressed transition-all" title="ערוך">
+                          <button onClick={() => { setEditInvoice(inv); setIsModalOpen(true); }} className="p-2 bg-slate-50 border border-slate-200 text-blue-600 rounded-lg hover:bg-blue-50 transition-all" title="ערוך">
                             ✏️
                           </button>
-                          <button onClick={() => handleDelete(inv.id)} className="p-2 bg-[#edeef2] text-red-500 rounded-xl shadow-neu-flat hover:shadow-neu-pressed transition-all" title="מחק">
+                          <button onClick={() => handleDelete(inv.id)} className="p-2 bg-slate-50 border border-slate-200 text-red-600 rounded-lg hover:bg-red-50 transition-all" title="מחק">
                             🗑️
                           </button>
                         </div>
