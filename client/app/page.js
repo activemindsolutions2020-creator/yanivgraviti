@@ -27,7 +27,7 @@ export default function Dashboard() {
         <div dir="rtl" className="p-10 bg-white border border-slate-200 shadow-sm rounded-3xl text-center w-full max-w-md">
           <ShieldCheck className="w-16 h-16 text-blue-600 mx-auto mb-6" />
           <h1 className="text-3xl font-bold text-slate-800 mb-2">Smart Insolvency</h1>
-          <p className="text-slate-500 mb-8">התחבר למערכת ניהול חדלות הפירעון שלך</p>
+          <p className="text-slate-500 mb-8">התחבר למערכת ניהול התזרים שלך</p>
           <div className="flex flex-col gap-4">
             <button
               onClick={() => signIn("google")}

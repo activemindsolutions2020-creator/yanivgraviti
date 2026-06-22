@@ -9,7 +9,7 @@ const heebo = Heebo({
 
 export const metadata = {
   title: "Smart Insolvency",
-  description: "מערכת ניהול חדלות פרעון",
+  description: "מערכת ניהול תזרים",
 };
 
 export default function RootLayout({ children }) {
