@@ -49,12 +49,12 @@ export default function Dashboard() {
       <nav className="flex flex-col md:flex-row justify-between items-center mb-10 p-6 shadow-neu-flat rounded-2xl max-w-6xl mx-auto gap-4 md:gap-0">
         <h1 className="text-2xl font-bold text-gray-700">שלום, {session.user.name}</h1>
         <div className="flex gap-4">
-          {session.user.role === 'Admin' && (
+          {(session.user.role === 'Admin' || session.user.role === 'Manager') && (
             <a
               href="/admin"
               className="px-8 py-3 bg-blue-100 shadow-neu-flat rounded-xl font-bold text-blue-700 hover:shadow-neu-pressed transition-all"
             >
-              פאנל ניהול מנהל
+              פאנל ניהול משרד
             </a>
           )}
           <button

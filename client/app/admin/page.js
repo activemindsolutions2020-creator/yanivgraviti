@@ -23,7 +23,7 @@ export default function AdminDashboard() {
     if (status === "unauthenticated") {
       router.push("/");
     } else if (status === "authenticated") {
-      if (session.user.role !== "Admin") {
+      if (session.user.role !== "Admin" && session.user.role !== "Manager") {
         router.push("/");
       } else {
         fetchUsers();
@@ -90,7 +90,7 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!session || session.user.role !== "Admin") {
+  if (!session || (session.user.role !== "Admin" && session.user.role !== "Manager")) {
     return null; // Will redirect
   }
 
@@ -142,17 +142,20 @@ export default function AdminDashboard() {
               dir="ltr"
             />
           </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-gray-600 font-bold text-sm">תפקיד</label>
-            <select 
-              value={newRole} 
-              onChange={e => setNewRole(e.target.value)} 
-              className="px-4 py-2 rounded-xl bg-[#edeef2] shadow-neu-flat outline-none"
-            >
-              <option value="User">User</option>
-              <option value="Admin">Admin</option>
-            </select>
-          </div>
+          {session.user.role === 'Admin' && (
+            <div className="flex flex-col gap-2">
+              <label className="text-gray-600 font-bold text-sm">תפקיד</label>
+              <select 
+                value={newRole} 
+                onChange={e => setNewRole(e.target.value)} 
+                className="px-4 py-2 rounded-xl bg-[#edeef2] shadow-neu-flat outline-none"
+              >
+                <option value="User">לקוח רגיל (User)</option>
+                <option value="Manager">מנהל משרד עו"ד (Manager)</option>
+                <option value="Admin">מנהל ראשי (Admin)</option>
+              </select>
+            </div>
+          )}
           <div className="flex flex-col gap-2">
             <label className="text-gray-600 font-bold text-sm">סטטוס</label>
             <select 
@@ -194,15 +197,19 @@ export default function AdminDashboard() {
                     <td className="p-4 font-bold text-gray-700">{u.name}</td>
                     <td className="p-4 text-gray-600" dir="ltr">{u.email}</td>
                     <td className="p-4">
-                      <select 
-                        value={u.role}
-                        onChange={(e) => updateUser(u.email, u.status, e.target.value)}
-                        className="bg-transparent border border-gray-300 rounded px-2 py-1 outline-none focus:border-blue-500"
-                        disabled={u.email === session.user.email} // Prevent changing own role easily
-                      >
-                        <option value="User">User</option>
-                        <option value="Admin">Admin</option>
-                      </select>
+                      {session.user.role === 'Admin' && u.email !== session.user.email ? (
+                        <select 
+                          value={u.role}
+                          onChange={(e) => updateUser(u.email, u.status, e.target.value)}
+                          className="bg-transparent border border-gray-300 rounded px-2 py-1 outline-none focus:border-blue-500"
+                        >
+                          <option value="User">User</option>
+                          <option value="Manager">Manager</option>
+                          <option value="Admin">Admin</option>
+                        </select>
+                      ) : (
+                        <span className="font-semibold text-gray-600">{u.role}</span>
+                      )}
                     </td>
                     <td className="p-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-bold ${

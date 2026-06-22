@@ -25,10 +25,10 @@ async function ensureUsersSheet() {
       // Add headers
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: 'Users!A1:F1',
+        range: 'Users!A1:G1',
         valueInputOption: 'USER_ENTERED',
         requestBody: {
-          values: [['Email', 'Name', 'Role', 'Status', 'CreatedAt', 'Password']]
+          values: [['Email', 'Name', 'Role', 'Status', 'CreatedAt', 'Password', 'CreatedBy']]
         }
       });
     }
@@ -91,7 +91,7 @@ router.post('/auth', async (req, res) => {
     const isMainAdmin = email === ADMIN_EMAIL;
     const newUser = {
       email,
-      name: name || 'Unknown',
+      name: name || email,
       role: isMainAdmin ? 'Admin' : 'User',
       status: isMainAdmin ? 'Approved' : 'Pending',
       createdAt: new Date().toISOString()
@@ -99,11 +99,11 @@ router.post('/auth', async (req, res) => {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Users!A:E',
+      range: 'Users!A:G',
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       requestBody: {
-        values: [[newUser.email, newUser.name, newUser.role, newUser.status, newUser.createdAt]]
+        values: [[newUser.email, newUser.name, newUser.role, newUser.status, newUser.createdAt, '', 'System']]
       }
     });
 
@@ -169,7 +169,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// GET /api/users - Get all users (Admin only)
+// GET /api/users - Get all users (Admin or Manager)
 router.get('/', async (req, res) => {
   try {
     const { adminEmail } = req.query;
@@ -180,31 +180,42 @@ router.get('/', async (req, res) => {
 
     const getResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Users!A:E',
+      range: 'Users!A:G',
     });
 
     const rows = getResponse.data.values || [];
     if (rows.length < 2) return res.status(200).json({ success: true, data: [] });
 
-    // Verify admin
-    let isAdmin = false;
-    const users = [];
+    // Verify admin or manager
+    let userRole = null;
     
     for (let i = 1; i < rows.length; i++) {
-      if (rows[i][0] === adminEmail && rows[i][2] === 'Admin' && rows[i][3] === 'Approved') {
-        isAdmin = true;
+      if (rows[i][0] === adminEmail && rows[i][3] === 'Approved') {
+        userRole = rows[i][2]; // 'Admin', 'Manager', or 'User'
+        break;
       }
-      users.push({
-        email: rows[i][0],
-        name: rows[i][1],
-        role: rows[i][2],
-        status: rows[i][3],
-        createdAt: rows[i][4]
-      });
     }
 
-    if (!isAdmin) {
-      return res.status(403).json({ success: false, message: 'Forbidden: Admin access required' });
+    if (userRole !== 'Admin' && userRole !== 'Manager') {
+      return res.status(403).json({ success: false, message: 'Forbidden: Admin or Manager access required' });
+    }
+
+    const users = [];
+    for (let i = 1; i < rows.length; i++) {
+      const rowEmail = rows[i][0];
+      const rowCreatedBy = rows[i][6] || '';
+      
+      // Admin sees everyone. Manager sees only those they created.
+      if (userRole === 'Admin' || rowCreatedBy === adminEmail || rowEmail === adminEmail) {
+        users.push({
+          email: rows[i][0],
+          name: rows[i][1],
+          role: rows[i][2],
+          status: rows[i][3],
+          createdAt: rows[i][4],
+          createdBy: rowCreatedBy
+        });
+      }
     }
 
     return res.status(200).json({ success: true, data: users });
@@ -215,7 +226,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/users - Create a new user manually (Admin only)
+// POST /api/users - Create a new user manually (Admin or Manager)
 router.post('/', async (req, res) => {
   try {
     const { adminEmail, targetEmail, targetName, targetRole, targetStatus, targetPassword } = req.body;
@@ -224,47 +235,53 @@ router.post('/', async (req, res) => {
     await ensureUsersSheet();
     const spreadsheetId = process.env.SPREADSHEET_ID;
 
-    // Fetch all users to verify admin and check if target already exists
     const getResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Users!A:E',
+      range: 'Users!A:G',
     });
 
     const rows = getResponse.data.values || [];
     
-    let isAdmin = false;
+    let userRole = null;
     let targetExists = false;
 
     for (let i = 1; i < rows.length; i++) {
-      if (rows[i][0] === adminEmail && rows[i][2] === 'Admin' && rows[i][3] === 'Approved') {
-        isAdmin = true;
+      if (rows[i][0] === adminEmail && rows[i][3] === 'Approved') {
+        userRole = rows[i][2];
       }
       if (rows[i][0] === targetEmail) {
         targetExists = true;
       }
     }
 
-    if (!isAdmin) return res.status(403).json({ success: false, message: 'Forbidden: Admin access required' });
+    if (userRole !== 'Admin' && userRole !== 'Manager') return res.status(403).json({ success: false, message: 'Forbidden' });
     if (targetExists) return res.status(409).json({ success: false, message: 'User already exists' });
+
+    // Enforce Manager restrictions
+    let finalRole = targetRole || 'User';
+    let finalStatus = targetStatus || 'Approved';
+    if (userRole === 'Manager') {
+      finalRole = 'User'; // Manager can only create Users
+    }
 
     const newUser = {
       email: targetEmail,
       name: targetName || targetEmail,
-      role: targetRole || 'User',
-      status: targetStatus || 'Approved',
-      createdAt: new Date().toISOString()
+      role: finalRole,
+      status: finalStatus,
+      createdAt: new Date().toISOString(),
+      createdBy: adminEmail
     };
     
-    // Encrypt password if provided
     const passwordToStore = targetPassword ? encryptData(targetPassword) : "";
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Users!A:F',
+      range: 'Users!A:G',
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       requestBody: {
-        values: [[newUser.email, newUser.name, newUser.role, newUser.status, newUser.createdAt, passwordToStore]]
+        values: [[newUser.email, newUser.name, newUser.role, newUser.status, newUser.createdAt, passwordToStore, newUser.createdBy]]
       }
     });
 
@@ -276,7 +293,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT /api/users/:targetEmail - Update user status/role (Admin only)
+// PUT /api/users/:targetEmail - Update user status/role (Admin or Manager)
 router.put('/:targetEmail', async (req, res) => {
   try {
     const { targetEmail } = req.params;
@@ -287,42 +304,49 @@ router.put('/:targetEmail', async (req, res) => {
     const spreadsheetId = process.env.SPREADSHEET_ID;
     const getResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Users!A:E',
+      range: 'Users!A:G',
     });
 
     const rows = getResponse.data.values || [];
     
-    // Verify Admin
-    let isAdmin = false;
+    let userRole = null;
     let targetRowIndex = -1;
+    let targetCreatedBy = '';
 
     for (let i = 1; i < rows.length; i++) {
-      if (rows[i][0] === adminEmail && rows[i][2] === 'Admin' && rows[i][3] === 'Approved') {
-        isAdmin = true;
+      if (rows[i][0] === adminEmail && rows[i][3] === 'Approved') {
+        userRole = rows[i][2];
       }
       if (rows[i][0] === targetEmail) {
         targetRowIndex = i;
+        targetCreatedBy = rows[i][6] || '';
       }
     }
 
-    if (!isAdmin) {
-      return res.status(403).json({ success: false, message: 'Forbidden: Admin access required' });
+    if (userRole !== 'Admin' && userRole !== 'Manager') {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
     }
     if (targetRowIndex === -1) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Update the row. Columns C=Role, D=Status
-    // We fetch current to preserve if not passed
+    // Manager can only edit users they created
+    if (userRole === 'Manager' && targetCreatedBy !== adminEmail) {
+      return res.status(403).json({ success: false, message: 'Forbidden: You can only edit users you created' });
+    }
+
     const currentRole = rows[targetRowIndex][2];
     const currentStatus = rows[targetRowIndex][3];
+
+    // Manager cannot change roles
+    const newRole = userRole === 'Manager' ? currentRole : (role || currentRole);
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: `Users!C${targetRowIndex + 1}:D${targetRowIndex + 1}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
-        values: [[role || currentRole, status || currentStatus]]
+        values: [[newRole, status || currentStatus]]
       }
     });
 
