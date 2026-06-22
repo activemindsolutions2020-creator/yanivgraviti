@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+client/node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Next.js build output
+client/.next/
+client/out/
+client/build/
+
+# Misc
+.DS_Store
+*.pem
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Google Cloud Service Account Key (CRITICAL: Do not commit!)
+smart-insolvency-ai-*.json
+*.json
+
+# Only allow package.json and package-lock.json explicitly if we ignore all .json
+!package.json
+!package-lock.json
+!client/package.json
+!client/package-lock.json
+
+# Scratch files
+test-append*.js
+test-pdf.js
+test-perms.js
+check-sheets.js
+Dropzone.js
+ProfileForm.js
