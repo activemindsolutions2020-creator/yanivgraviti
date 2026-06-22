@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
-import html2canvas from "html2canvas";
+import * as htmlToImage from "html-to-image";
 import { jsPDF } from "jspdf";
 import { PDFDocument } from "pdf-lib";
 import ManualEntryModal from "./ManualEntryModal";
@@ -30,34 +30,33 @@ export default function ReportTable({ userEmail }) {
   const parseDate = (dateStr) => {
     if (!dateStr || dateStr === "N/A" || dateStr === "Unknown") return 0;
     try {
-        if (dateStr.includes('/')) {
-          const parts = dateStr.split('/');
-          if (parts.length === 3) {
-            const day = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10) - 1;
-            let year = parseInt(parts[2], 10);
-            if (year < 100) year += 2000;
-            return new Date(year, month, day).getTime();
-          }
+      if (dateStr.includes('/')) {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1;
+          let year = parseInt(parts[2], 10);
+          if (year < 100) year += 2000;
+          return new Date(year, month, day).getTime();
         }
-        return new Date(dateStr).getTime() || 0;
+      }
+      return new Date(dateStr).getTime() || 0;
     } catch {
-        return 0;
+      return 0;
     }
   };
 
   const exportToPDF = async (monthYear, items) => {
     const element = document.getElementById(`month-container-${monthYear}`);
     if (!element) return;
-    
+
     try {
       setExportingMonth(monthYear);
-      
+
       const pdfDoc = await PDFDocument.create();
 
-      // 1. Capture the table as an image
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true });
-      const imgData = canvas.toDataURL('image/png');
+      // 1. Capture the table as an image using html-to-image (bypasses lab color error)
+      const imgData = await htmlToImage.toPng(element, { pixelRatio: 2 });
       
       const base64Data = imgData.split(',')[1];
       const binaryString = window.atob(base64Data);
@@ -66,7 +65,7 @@ export default function ReportTable({ userEmail }) {
       for (let i = 0; i < len; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
-      
+
       // Embed table image
       const tableImage = await pdfDoc.embedPng(bytes);
       const tablePage = pdfDoc.addPage([tableImage.width, tableImage.height]);
@@ -75,11 +74,11 @@ export default function ReportTable({ userEmail }) {
       // 2. Process each invoice file
       for (const inv of items) {
         if (!inv.fileUrl || inv.fileUrl === 'N/A' || inv.fileUrl === 'Unknown') continue;
-        
+
         try {
           const proxyUrl = `/api/fetch-proxy?url=${encodeURIComponent(inv.fileUrl)}`;
           const response = await fetch(proxyUrl);
-          
+
           if (!response.ok) {
             console.error(`Failed to fetch ${inv.fileUrl}`);
             continue;
@@ -93,7 +92,7 @@ export default function ReportTable({ userEmail }) {
             const externalPdf = await PDFDocument.load(fileBuffer);
             const copiedPages = await pdfDoc.copyPages(externalPdf, externalPdf.getPageIndices());
             copiedPages.forEach(page => pdfDoc.addPage(page));
-          } 
+          }
           else if (contentType.includes('image') || urlLower.match(/\.(jpeg|jpg|png|webp)$/)) {
             let externalImg;
             try {
@@ -102,11 +101,11 @@ export default function ReportTable({ userEmail }) {
               } else {
                 externalImg = await pdfDoc.embedJpg(fileBuffer);
               }
-              
+
               const page = pdfDoc.addPage([595.28, 841.89]);
               const margin = 40;
               const { width, height } = externalImg.scaleToFit(595.28 - (margin * 2), 841.89 - (margin * 2));
-              
+
               page.drawImage(externalImg, {
                 x: (595.28 / 2) - (width / 2),
                 y: (841.89 / 2) - (height / 2),
@@ -129,7 +128,7 @@ export default function ReportTable({ userEmail }) {
       link.href = URL.createObjectURL(blob);
       link.download = `Report_${monthYear}_Full.pdf`;
       link.click();
-      
+
     } catch (err) {
       console.error("Error generating combined PDF", err);
       alert(`שגיאה ביצירת ה-PDF המשולב: ${err.message}`);
@@ -168,10 +167,10 @@ export default function ReportTable({ userEmail }) {
   }, [userEmail]);
 
   // Expose fetchInvoices to parent if needed via an event or ref, but for now we just rely on polling or a refresh button
-  
+
   const handleDelete = async (id) => {
     if (!confirm("האם אתה בטוח שברצונך למחוק תנועה זו? היא תוסתר מהדוח ותוגדר כ'מבוטלת'.")) return;
-    
+
     try {
       setLoading(true);
       const res = await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/invoices/${id}?userEmail=${userEmail}`);
@@ -264,7 +263,7 @@ export default function ReportTable({ userEmail }) {
     if (cat === 'חינוך ותרבות') return '📚';
     if (cat === 'הלבשה') return '👕';
     if (cat === 'הוצאות נוספות') return '📌';
-    
+
     // Incomes
     if (cat === 'משכורת נטו') return '💼';
     if (cat === 'הכנסה מעסק') return '📈';
@@ -293,7 +292,7 @@ export default function ReportTable({ userEmail }) {
     return 'bg-yellow-100 text-yellow-700'; // Pending
   };
   const groupedData = {};
-  
+
   let grandTotalIncome = 0;
   let grandTotalExpense = 0;
 
@@ -367,14 +366,14 @@ export default function ReportTable({ userEmail }) {
       <div className="flex flex-col sm:flex-row justify-between items-center bg-white border border-slate-200 shadow-sm rounded-2xl p-6 gap-4">
         <h2 className="text-2xl font-bold text-slate-800">היסטוריית חשבוניות ודוחות</h2>
         <div className="flex gap-4">
-          <button 
+          <button
             onClick={() => { setEditInvoice(null); setIsModalOpen(true); }}
             className="px-6 py-2.5 bg-blue-600 rounded-lg font-medium text-white hover:bg-blue-700 shadow-sm transition-all flex items-center gap-2"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
             הוסף תנועה ידנית
           </button>
-          <button 
+          <button
             onClick={fetchInvoices}
             className="px-6 py-2.5 bg-slate-100 border border-slate-200 rounded-lg font-medium text-slate-700 hover:bg-slate-200 transition-all flex items-center gap-2"
           >
@@ -384,11 +383,11 @@ export default function ReportTable({ userEmail }) {
         </div>
       </div>
 
-      <ManualEntryModal 
-        isOpen={isModalOpen} 
-        onClose={() => { setIsModalOpen(false); setEditInvoice(null); }} 
-        userEmail={userEmail} 
-        onSuccess={fetchInvoices} 
+      <ManualEntryModal
+        isOpen={isModalOpen}
+        onClose={() => { setIsModalOpen(false); setEditInvoice(null); }}
+        userEmail={userEmail}
+        onSuccess={fetchInvoices}
         initialData={editInvoice}
       />
 
@@ -413,31 +412,31 @@ export default function ReportTable({ userEmail }) {
       {Object.keys(groupedData).map((monthYear) => {
         const { items, totalIncome, totalExpense, categories } = groupedData[monthYear];
         const isExpanded = expandedMonths[monthYear] !== false; // Default to true (expanded)
-        
+
         const sortedItems = [...items].sort((a, b) => {
           let valA = a[sortConfig.key];
           let valB = b[sortConfig.key];
-          
+
           if (sortConfig.key === 'date') {
-              valA = parseDate(a.date);
-              valB = parseDate(b.date);
+            valA = parseDate(a.date);
+            valB = parseDate(b.date);
           } else if (sortConfig.key === 'amount') {
-              valA = a.amount || 0;
-              valB = b.amount || 0;
+            valA = a.amount || 0;
+            valB = b.amount || 0;
           } else if (sortConfig.key === 'displayCategory') {
-              valA = a.displayCategory || "";
-              valB = b.displayCategory || "";
+            valA = a.displayCategory || "";
+            valB = b.displayCategory || "";
           } else if (sortConfig.key === 'type') {
-              valA = a.type || "";
-              valB = b.type || "";
+            valA = a.type || "";
+            valB = b.type || "";
           } else if (sortConfig.key === 'vendor') {
-              valA = a.vendor || "";
-              valB = b.vendor || "";
+            valA = a.vendor || "";
+            valB = b.vendor || "";
           } else if (sortConfig.key === 'status') {
-              valA = translateStatus(a.status) || "";
-              valB = translateStatus(b.status) || "";
+            valA = translateStatus(a.status) || "";
+            valB = translateStatus(b.status) || "";
           }
-          
+
           if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
           if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
           return 0;
@@ -445,7 +444,7 @@ export default function ReportTable({ userEmail }) {
 
         const SortIcon = ({ columnKey }) => {
           if (sortConfig.key !== columnKey) return <ArrowUpDown className="w-4 h-4 inline-block text-gray-400 opacity-50 ml-1" />;
-          return sortConfig.direction === 'asc' 
+          return sortConfig.direction === 'asc'
             ? <ArrowUp className="w-4 h-4 inline-block text-blue-600 ml-1" />
             : <ArrowDown className="w-4 h-4 inline-block text-blue-600 ml-1" />;
         };
@@ -454,7 +453,7 @@ export default function ReportTable({ userEmail }) {
           <div key={monthYear} id={`month-container-${monthYear}`} className="bg-white border border-slate-200 shadow-sm rounded-2xl p-8 transition-all duration-500">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-center group">
-              <div 
+              <div
                 className="flex items-center gap-3 cursor-pointer flex-1"
                 onClick={() => toggleMonth(monthYear)}
               >
@@ -464,7 +463,7 @@ export default function ReportTable({ userEmail }) {
                 </div>
               </div>
               <div className="flex items-center gap-4 mt-4 md:mt-0">
-                <button 
+                <button
                   onClick={(e) => { e.stopPropagation(); exportToPDF(monthYear, items); }}
                   disabled={exportingMonth === monthYear}
                   className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold transition-colors border ${exportingMonth === monthYear ? 'bg-blue-50 text-blue-400 border-blue-200 cursor-not-allowed' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'}`}
@@ -495,85 +494,85 @@ export default function ReportTable({ userEmail }) {
 
             {/* Accordion Content (Collapsible) */}
             <div className={`transition-all duration-500 overflow-hidden ${isExpanded ? 'max-h-[5000px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
-              
+
               {/* Category Widgets */}
               {Object.keys(categories).length > 0 && (
                 <div className="mb-8">
                   <h4 className="text-sm font-bold text-gray-500 mb-4 border-b border-gray-300 pb-2">סיכום הוצאות לפי קטגוריות</h4>
                   <div className="flex flex-wrap gap-3">
-                  {Object.entries(categories)
-                    .sort((a, b) => b[1] - a[1]) // Sort by amount descending
-                    .map(([catName, amount]) => (
-                      <div key={catName} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
-                        <span className="text-lg">{getCategoryEmoji(catName)}</span>
-                        <span className="text-sm font-medium text-slate-700">{catName}:</span>
-                        <span className="text-sm font-bold text-rose-600">₪{amount.toFixed(2)}</span>
-                      </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-right border-collapse">
-                <thead>
-                  <tr className="border-b-2 border-gray-300">
-                    <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('date')}>
-                      <div className="flex items-center justify-end gap-1">תאריך <SortIcon columnKey="date" /></div>
-                    </th>
-                    <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('vendor')}>
-                      <div className="flex items-center justify-end gap-1">ספק/לקוח <SortIcon columnKey="vendor" /></div>
-                    </th>
-                    <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('displayCategory')}>
-                      <div className="flex items-center justify-end gap-1">קטגוריה <SortIcon columnKey="displayCategory" /></div>
-                    </th>
-                    <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('type')}>
-                      <div className="flex items-center justify-end gap-1">סוג מסמך <SortIcon columnKey="type" /></div>
-                    </th>
-                    <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('amount')}>
-                      <div className="flex items-center justify-end gap-1">סכום <SortIcon columnKey="amount" /></div>
-                    </th>
-                    <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('status')}>
-                      <div className="flex items-center justify-end gap-1">סטטוס <SortIcon columnKey="status" /></div>
-                    </th>
-                    <th className="py-4 px-4 font-bold text-gray-600">פעולות</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedItems.map((inv, idx) => (
-                    <tr key={idx} className="border-b border-gray-200 hover:bg-[#e4e5e9] transition-colors">
-                      <td className="py-4 px-4 text-gray-700">{inv.date}</td>
-                      <td className="py-4 px-4 text-gray-800 font-semibold">{inv.vendor}</td>
-                      <td className="py-4 px-4 text-gray-600">{inv.displayCategory}</td>
-                      <td className="py-4 px-4 text-gray-600">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${inv.type?.includes('הכנסה') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                          {inv.type}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 font-bold text-blue-600">
-                        <span dir="ltr">{inv.currency === 'ILS' ? '₪' : inv.currency} {inv.amount}</span>
-                      </td>
-                      <td className="py-4 px-4 text-gray-600">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(translateStatus(inv.status))}`}>
-                          {translateStatus(inv.status)}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex gap-2 justify-end">
-                          <button onClick={() => { setEditInvoice(inv); setIsModalOpen(true); }} className="p-2 bg-slate-50 border border-slate-200 text-blue-600 rounded-lg hover:bg-blue-50 transition-all" title="ערוך">
-                            ✏️
-                          </button>
-                          <button onClick={() => handleDelete(inv.id)} className="p-2 bg-slate-50 border border-slate-200 text-red-600 rounded-lg hover:bg-red-50 transition-all" title="מחק">
-                            🗑️
-                          </button>
+                    {Object.entries(categories)
+                      .sort((a, b) => b[1] - a[1]) // Sort by amount descending
+                      .map(([catName, amount]) => (
+                        <div key={catName} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+                          <span className="text-lg">{getCategoryEmoji(catName)}</span>
+                          <span className="text-sm font-medium text-slate-700">{catName}:</span>
+                          <span className="text-sm font-bold text-rose-600">₪{amount.toFixed(2)}</span>
                         </div>
-                      </td>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-right border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-gray-300">
+                      <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('date')}>
+                        <div className="flex items-center justify-end gap-1">תאריך <SortIcon columnKey="date" /></div>
+                      </th>
+                      <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('vendor')}>
+                        <div className="flex items-center justify-end gap-1">ספק/לקוח <SortIcon columnKey="vendor" /></div>
+                      </th>
+                      <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('displayCategory')}>
+                        <div className="flex items-center justify-end gap-1">קטגוריה <SortIcon columnKey="displayCategory" /></div>
+                      </th>
+                      <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('type')}>
+                        <div className="flex items-center justify-end gap-1">סוג מסמך <SortIcon columnKey="type" /></div>
+                      </th>
+                      <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('amount')}>
+                        <div className="flex items-center justify-end gap-1">סכום <SortIcon columnKey="amount" /></div>
+                      </th>
+                      <th className="py-4 px-4 font-bold text-gray-600 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => handleSort('status')}>
+                        <div className="flex items-center justify-end gap-1">סטטוס <SortIcon columnKey="status" /></div>
+                      </th>
+                      <th className="py-4 px-4 font-bold text-gray-600">פעולות</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {sortedItems.map((inv, idx) => (
+                      <tr key={idx} className="border-b border-gray-200 hover:bg-[#e4e5e9] transition-colors">
+                        <td className="py-4 px-4 text-gray-700">{inv.date}</td>
+                        <td className="py-4 px-4 text-gray-800 font-semibold">{inv.vendor}</td>
+                        <td className="py-4 px-4 text-gray-600">{inv.displayCategory}</td>
+                        <td className="py-4 px-4 text-gray-600">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${inv.type?.includes('הכנסה') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {inv.type}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 font-bold text-blue-600">
+                          <span dir="ltr">{inv.currency === 'ILS' ? '₪' : inv.currency} {inv.amount}</span>
+                        </td>
+                        <td className="py-4 px-4 text-gray-600">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(translateStatus(inv.status))}`}>
+                            {translateStatus(inv.status)}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex gap-2 justify-end">
+                            <button onClick={() => { setEditInvoice(inv); setIsModalOpen(true); }} className="p-2 bg-slate-50 border border-slate-200 text-blue-600 rounded-lg hover:bg-blue-50 transition-all" title="ערוך">
+                              ✏️
+                            </button>
+                            <button onClick={() => handleDelete(inv.id)} className="p-2 bg-slate-50 border border-slate-200 text-red-600 rounded-lg hover:bg-red-50 transition-all" title="מחק">
+                              🗑️
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
           </div>
         );
       })}
