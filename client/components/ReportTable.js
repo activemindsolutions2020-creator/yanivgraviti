@@ -197,6 +197,10 @@ export default function ReportTable({ userEmail }) {
     return 'bg-yellow-100 text-yellow-700'; // Pending
   };
   const groupedData = {};
+  
+  let grandTotalIncome = 0;
+  let grandTotalExpense = 0;
+
   invoices.forEach(inv => {
     // Attempt to parse the date. Fallback to 'Unknown' if date is 'N/A' or invalid.
     let monthYearStr = "לא ידוע";
@@ -241,8 +245,14 @@ export default function ReportTable({ userEmail }) {
     // Assuming "הכנסה" means Income and anything else is Expense
     if (inv.type && inv.type.includes("הכנסה")) {
       groupedData[monthYearStr].totalIncome += inv.amount;
+      if (inv.status !== 'מבוטל' && inv.status !== 'Canceled') {
+        grandTotalIncome += inv.amount;
+      }
     } else {
       groupedData[monthYearStr].totalExpense += inv.amount;
+      if (inv.status !== 'מבוטל' && inv.status !== 'Canceled') {
+        grandTotalExpense += inv.amount;
+      }
       // Track category expenses
       if (!groupedData[monthYearStr].categories[hebCat]) {
         groupedData[monthYearStr].categories[hebCat] = 0;
@@ -250,6 +260,10 @@ export default function ReportTable({ userEmail }) {
       groupedData[monthYearStr].categories[hebCat] += inv.amount;
     }
   });
+
+  const grandBalance = grandTotalIncome - grandTotalExpense;
+  const balanceColor = grandBalance >= 0 ? 'text-emerald-600' : 'text-rose-600';
+  const balanceBg = grandBalance >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200';
 
 
   return (
@@ -281,6 +295,24 @@ export default function ReportTable({ userEmail }) {
         onSuccess={fetchInvoices} 
         initialData={editInvoice}
       />
+
+      {/* Grand Totals Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-6 flex flex-col justify-center items-center text-center">
+          <span className="text-sm font-semibold text-slate-500 mb-1">סך הכנסות מצטבר</span>
+          <span className="text-3xl font-bold text-slate-800">₪{grandTotalIncome.toFixed(2)}</span>
+        </div>
+        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-6 flex flex-col justify-center items-center text-center">
+          <span className="text-sm font-semibold text-slate-500 mb-1">סך הוצאות מצטבר</span>
+          <span className="text-3xl font-bold text-slate-800">₪{grandTotalExpense.toFixed(2)}</span>
+        </div>
+        <div className={`border shadow-sm rounded-2xl p-6 flex flex-col justify-center items-center text-center ${balanceBg}`}>
+          <span className={`text-sm font-bold mb-1 ${balanceColor}`}>יתרה כוללת (הכנסות מול הוצאות)</span>
+          <span className={`text-4xl font-black ${balanceColor}`}>
+            {grandBalance > 0 ? '+' : ''}₪{grandBalance.toFixed(2)}
+          </span>
+        </div>
+      </div>
 
       {Object.keys(groupedData).map((monthYear) => {
         const { items, totalIncome, totalExpense, categories } = groupedData[monthYear];
