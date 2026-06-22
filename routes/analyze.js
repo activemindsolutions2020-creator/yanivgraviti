@@ -3,6 +3,7 @@ import multer from "multer";
 import { Readable } from "stream";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { drive, sheets } from "../server.js";
+import { v2 as cloudinary } from "cloudinary";
 
 const router = express.Router();
 
@@ -134,29 +135,27 @@ If there is only one receipt, return an array with one object. If you cannot fin
     }
 
     // =========================================================================
-    // Save to Google Drive & Google Sheets
+    // Save to Cloudinary & Google Sheets
     // =========================================================================
-    let driveFileId = null;
+    let fileUrl = "N/A";
 
     try {
-      // 1. Upload to Google Drive
-      console.log(`Uploading ${file.originalname} to Google Drive...`);
-      const driveFile = await drive.files.create({
-        requestBody: {
-          name: file.originalname,
-          parents: [process.env.DRIVE_FOLDER_ID],
-        },
-        media: {
-          mimeType: file.mimetype,
-          body: Readable.from(file.buffer),
-        },
-        fields: "id",
+      // 1. Upload to Cloudinary
+      console.log(`Uploading ${file.originalname} to Cloudinary...`);
+      fileUrl = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { resource_type: "auto", folder: "yaniv_invoices" },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result.secure_url);
+          }
+        );
+        stream.end(file.buffer);
       });
-      driveFileId = driveFile.data.id;
-      console.log(`File uploaded to Drive successfully. ID: ${driveFileId}`);
-    } catch (driveError) {
-      console.error("Failed to upload to Google Drive (Service Account quota issue?):", driveError.message);
-      // We continue even if drive fails, to at least save the row to sheets
+      console.log(`File uploaded to Cloudinary successfully. URL: ${fileUrl}`);
+    } catch (uploadError) {
+      console.error("Failed to upload to Cloudinary:", uploadError.message);
+      // We continue even if upload fails, to at least save the row to sheets
     }
 
     try {
@@ -171,7 +170,7 @@ If there is only one receipt, return an array with one object. If you cannot fin
         item.totalAmount || 0,
         item.currency || "ILS",
         item.type || "",
-        driveFileId || "N/A",
+        fileUrl || "N/A",
         "Pending"
       ]);
 

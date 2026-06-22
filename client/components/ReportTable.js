@@ -84,8 +84,16 @@ export default function ReportTable({ userEmail }) {
         }
         
         try {
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-          const fileUrl = `${apiUrl}/api/invoices/download/${inv.driveFileId}`;
+          let fileUrl;
+          if (inv.driveFileId.startsWith('http')) {
+            // It's a direct Cloudinary URL
+            fileUrl = inv.driveFileId;
+          } else {
+            // Legacy Google Drive ID fallback (mostly N/A anyway)
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+            fileUrl = `${apiUrl}/api/invoices/download/${inv.driveFileId}`;
+          }
+          
           const response = await fetch(fileUrl);
           
           if (!response.ok) {
