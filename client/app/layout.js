@@ -1,6 +1,6 @@
 import { Heebo } from "next/font/google";
 import "./globals.css";
-import AuthProvider from "@/AuthProvider";
+import AuthProvider from "../components/AuthProvider";
 
 const heebo = Heebo({
   subsets: ["hebrew", "latin"],
