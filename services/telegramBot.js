@@ -129,7 +129,7 @@ export const initTelegramBot = () => {
       // Let the analysis route know it came from the bot
       formData.append('source', 'telegram');
 
-      const apiRes = await axios.post(`http://localhost:${process.env.PORT || 3000}/api/analyze`, formData, {
+      const apiRes = await axios.post(`http://127.0.0.1:${process.env.PORT || 3000}/api/analyze`, formData, {
         headers: { ...formData.getHeaders() }
       });
 
@@ -193,7 +193,7 @@ export const initTelegramBot = () => {
         formData.append('textMessage', msg.text);
       }
 
-      const apiRes = await axios.post(`http://localhost:${process.env.PORT || 3000}/api/chat`, formData, {
+      const apiRes = await axios.post(`http://127.0.0.1:${process.env.PORT || 3000}/api/chat`, formData, {
         headers: { ...formData.getHeaders() }
       });
 
