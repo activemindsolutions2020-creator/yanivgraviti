@@ -6,6 +6,7 @@ dotenv.config(); // Ensure env vars are loaded before Cloudinary configures itse
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { drive, sheets } from "../server.js";
 import { v2 as cloudinary } from "cloudinary";
+cloudinary.config(true); // Force Cloudinary to read the newly loaded process.env
 import JSON5 from "json5";
 import { PDFDocument } from "pdf-lib";
 
