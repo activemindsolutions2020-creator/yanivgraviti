@@ -121,11 +121,10 @@ export const initTelegramBot = () => {
       bot.sendMessage(chatId, "⏳ מוריד את הקובץ ושולח לרואה החשבון המלאכותי שלך...");
       
       const fileLink = await bot.getFileLink(fileId);
-      const response = await axios.get(fileLink, { responseType: 'arraybuffer' });
-      const buffer = Buffer.from(response.data, 'binary');
+      const response = await axios.get(fileLink, { responseType: 'stream' });
 
       const formData = new FormData();
-      formData.append('invoiceFile', buffer, { filename: fileName, contentType: mimeType });
+      formData.append('invoiceFile', response.data, { filename: fileName, contentType: mimeType });
       formData.append('userEmail', user.email);
       // Let the analysis route know it came from the bot
       formData.append('source', 'telegram');

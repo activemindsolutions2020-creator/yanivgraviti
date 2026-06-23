@@ -188,10 +188,13 @@ If there is only one receipt, return an array with one object. If you cannot fin
     // Save to Cloudinary & Google Sheets
     // =========================================================================
     
-    const uploadBufferToCloudinary = (buffer) => {
+    const uploadBufferToCloudinary = (buffer, isPdfFormat = false) => {
       return new Promise((resolve, reject) => {
+        const options = { resource_type: "auto", folder: "yaniv_invoices" };
+        if (isPdfFormat) options.format = "pdf";
+        
         const stream = cloudinary.uploader.upload_stream(
-          { resource_type: "auto", folder: "yaniv_invoices" },
+          options,
           (error, result) => {
             if (error) return reject(error);
             resolve(result.secure_url);
@@ -202,13 +205,13 @@ If there is only one receipt, return an array with one object. If you cannot fin
     };
 
     let defaultFileUrl = "N/A";
-    let isPdf = file.originalname.toLowerCase().endsWith(".pdf");
+    let isPdf = file.originalname.toLowerCase().endsWith(".pdf") || file.mimetype === "application/pdf";
     let pdfDoc = null;
 
     try {
       // 1. Upload the full original file as a fallback/default
       console.log(`Uploading full ${file.originalname} to Cloudinary...`);
-      defaultFileUrl = await uploadBufferToCloudinary(file.buffer);
+      defaultFileUrl = await uploadBufferToCloudinary(file.buffer, isPdf);
       console.log(`Full file uploaded successfully. URL: ${defaultFileUrl}`);
     } catch (uploadError) {
       console.error("Failed to upload full file to Cloudinary:", uploadError.message);
@@ -246,7 +249,7 @@ If there is only one receipt, return an array with one object. If you cannot fin
 
     const uploadPromises = buffersToUpload.map(async ({ item, buffer }) => {
        try {
-         const splitUrl = await uploadBufferToCloudinary(buffer);
+         const splitUrl = await uploadBufferToCloudinary(buffer, true);
          item.fileUrl = splitUrl;
          console.log(`Successfully uploaded page ${item.pageNumber}. URL: ${splitUrl}`);
        } catch (err) {
