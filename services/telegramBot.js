@@ -198,13 +198,26 @@ export const initTelegramBot = () => {
       });
 
       if (apiRes.data.success) {
-        const { intent, replyText, expenseData, monthYear } = apiRes.data;
+        const { intent, replyText, expenses, monthYear } = apiRes.data;
         if (intent === "expense") {
-          const isIncome = expenseData.type && expenseData.type.includes('הכנסה');
-          let replyMsg = isIncome ? `✅ ההכנסה נרשמה בהצלחה!\n\n` : `✅ ההוצאה נרשמה בהצלחה!\n\n`;
-          replyMsg += `📄 בית עסק: ${expenseData.vendor || 'לא זוהה'}\n`;
-          replyMsg += `💰 סכום: ₪${expenseData.totalAmount || 0}\n`;
-          replyMsg += `🏷️ קטגוריה: ${expenseData.category || 'אחר'}\n\n`;
+          const isMultiple = expenses && expenses.length > 1;
+          let replyMsg = isMultiple ? `✅ נרשמו ${expenses.length} פעולות בהצלחה!\n\n` : "";
+          
+          if (expenses && expenses.length > 0) {
+            expenses.forEach((expenseData, idx) => {
+               const isIncome = expenseData.type && expenseData.type.includes('הכנסה');
+               if (!isMultiple) {
+                 replyMsg += isIncome ? `✅ ההכנסה נרשמה בהצלחה!\n\n` : `✅ ההוצאה נרשמה בהצלחה!\n\n`;
+               } else {
+                 replyMsg += `📌 פעולה ${idx + 1}:\n`;
+               }
+               replyMsg += `📄 בית עסק: ${expenseData.vendor || 'לא זוהה'} ${isMultiple ? (isIncome ? '(הכנסה)' : '(הוצאה)') : ''}\n`;
+               replyMsg += `💰 סכום: ₪${expenseData.totalAmount || 0}\n`;
+               if (isMultiple) replyMsg += `📅 תאריך: ${expenseData.date || 'לא צוין'}\n`;
+               replyMsg += `🏷️ קטגוריה: ${expenseData.category || 'אחר'}\n\n`;
+            });
+          }
+          
           replyMsg += replyText ? replyText : "📊 הנתונים נשמרו בפאנל הניהול שלך.";
           bot.sendMessage(chatId, replyMsg);
         } else if (intent === "generate_report") {

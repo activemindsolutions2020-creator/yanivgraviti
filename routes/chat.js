@@ -79,17 +79,20 @@ Analyze the user's message (which may be text or an audio transcript). Determine
 3. "generate_report" - The user specifically asks to generate, download, export, or send them a PDF report of their data/invoices.
 
 If INTENT is "expense":
-Extract the details and return JSON EXACTLY in this format:
+Extract the details. If the user asks to add the expense for multiple months or retroactively, generate an array of objects, one for each relevant month.
+Return JSON EXACTLY in this format:
 {
   "intent": "expense",
-  "expenseData": {
-    "type": "Must be either 'דיווח טלגרם - הוצאה' if it's an expense, or 'דיווח טלגרם - הכנסה' if it's an income",
-    "vendor": "Name of business",
-    "category": "One of: שכר דירה, משכנתא, מיסי עירייה, כלכלה (מזון), טלפון, כבלים ואינטרנט, טלפון נייד, גז, ועד בית, מים, חשמל, תשלום חודשי לממונה, הוצאות רפואיות, נסיעות לעבודה, טיפול בילדים, תשלום מזונות, נסיעות אחרות, אחזקת רכב, חינוך ותרבות, הלבשה, הוצאות נוספות, משכורת נטו, הכנסה מעסק, פנסיה, שכר דירה (הכנסה), קצבאות ביטוח לאומי, מזונות (הכנסה), הכנסות נוספות",
-    "totalAmount": 150.50,
-    "currency": "ILS",
-    "date": "DD/MM/YYYY"
-  },
+  "expenses": [
+    {
+      "type": "Must be either 'דיווח טלגרם - הוצאה' if it's an expense, or 'דיווח טלגרם - הכנסה' if it's an income",
+      "vendor": "Name of business",
+      "category": "One of: שכר דירה, משכנתא, מיסי עירייה, כלכלה (מזון), טלפון, כבלים ואינטרנט, טלפון נייד, גז, ועד בית, מים, חשמל, תשלום חודשי לממונה, הוצאות רפואיות, נסיעות לעבודה, טיפול בילדים, תשלום מזונות, נסיעות אחרות, אחזקת רכב, חינוך ותרבות, הלבשה, הוצאות נוספות, משכורת נטו, הכנסה מעסק, פנסיה, שכר דירה (הכנסה), קצבאות ביטוח לאומי, מזונות (הכנסה), הכנסות נוספות",
+      "totalAmount": 150.50,
+      "currency": "ILS",
+      "date": "DD/MM/YYYY" // Determine the correct date for each month requested. If they don't specify, use the current date.
+    }
+  ],
   "replyText": "A friendly confirmation message in Hebrew that it was logged."
 }
 
@@ -196,9 +199,9 @@ IMPORTANT: Never use unescaped double quotes (") inside the JSON string values. 
     }
 
     // If it's an expense, append it to sheets!
-    if (parsedResult.intent === "expense" && parsedResult.expenseData) {
-       const item = parsedResult.expenseData;
-       const rowToAppend = [
+    if (parsedResult.intent === "expense") {
+       const expensesToAppend = parsedResult.expenses || (parsedResult.expenseData ? [parsedResult.expenseData] : []);
+       const rowsToAppend = expensesToAppend.map(item => [
           userEmail,                                // Index 0 (A): Email
           item.date || new Date().toLocaleDateString('he-IL'), // Index 1 (B): Date
           item.vendor || "Unknown",                 // Index 2 (C): Vendor
@@ -208,18 +211,20 @@ IMPORTANT: Never use unescaped double quotes (") inside the JSON string values. 
           item.type || "Invoice",                   // Index 6 (G): Type
           "N/A",                                    // Index 7 (H): File URL
           "Pending"                                 // Index 8 (I): Status
-       ];
+       ]);
 
-       try {
-         await sheets.spreadsheets.values.append({
-            spreadsheetId: process.env.SPREADSHEET_ID,
-            range: "Invoices!A:G",
-            valueInputOption: "USER_ENTERED",
-            requestBody: { values: [rowToAppend] },
-         });
-       } catch (sheetErr) {
-         console.error("Failed to append voice expense:", sheetErr);
-         return res.status(500).json({ success: false, message: "הפענוח הצליח אך השמירה בגוגל שיטס נכשלה." });
+       if (rowsToAppend.length > 0) {
+           try {
+             await sheets.spreadsheets.values.append({
+                spreadsheetId: process.env.SPREADSHEET_ID,
+                range: "Invoices!A:G",
+                valueInputOption: "USER_ENTERED",
+                requestBody: { values: rowsToAppend },
+             });
+           } catch (sheetErr) {
+             console.error("Failed to append voice expense:", sheetErr);
+             return res.status(500).json({ success: false, message: "הפענוח הצליח אך השמירה בגוגל שיטס נכשלה." });
+           }
        }
     }
 
@@ -227,7 +232,7 @@ IMPORTANT: Never use unescaped double quotes (") inside the JSON string values. 
       success: true,
       intent: parsedResult.intent,
       replyText: parsedResult.replyText,
-      expenseData: parsedResult.expenseData,
+      expenses: parsedResult.expenses || (parsedResult.expenseData ? [parsedResult.expenseData] : []),
       monthYear: parsedResult.monthYear
     });
 
