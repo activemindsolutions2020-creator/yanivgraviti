@@ -132,6 +132,9 @@ If there is only one receipt, return an array with one object. If you cannot fin
     if (jsonMatch) {
       resultText = jsonMatch[0];
     }
+    
+    // Fix common LLM JSON syntax errors (like trailing commas)
+    resultText = resultText.replace(/,\s*([\]}])/g, '$1');
 
     let parsedResult;
     try {
