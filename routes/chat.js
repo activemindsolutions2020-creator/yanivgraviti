@@ -110,7 +110,8 @@ Return JSON EXACTLY in this format:
   "replyText": "מייצר את הדו\"ח המבוקש ושולח אליך מיד..."
 }
 
-CRITICAL: Return ONLY valid JSON. Do not include markdown \`\`\`json blocks around the output.`;
+CRITICAL: Return ONLY valid JSON. Do not include markdown \`\`\`json blocks.
+IMPORTANT: Never use unescaped double quotes (") inside the JSON string values. For Hebrew abbreviations like דו"ח or מע"מ, use single quotes instead: דו'ח, מע'מ.`;
 
     const contents = [];
     if (file) {
