@@ -61,8 +61,38 @@ router.post("/", upload.single("invoiceFile"), async (req, res) => {
       console.error("Error reading profile for insolvency check:", e);
     }
 
+    let recentMissingReceipts = [];
+    try {
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: process.env.SPREADSHEET_ID,
+        range: "Invoices!A:H",
+      });
+      const rows = response.data.values || [];
+      const startIndex = Math.max(1, rows.length - 100);
+      for (let i = startIndex; i < rows.length; i++) {
+        const row = rows[i];
+        if (row && row[0] === userEmail) {
+          const fileUrl = row[7];
+          if (!fileUrl || fileUrl === "N/A" || fileUrl.trim() === "") {
+             recentMissingReceipts.push({
+               rowIndex: i + 1,
+               date: row[1],
+               vendor: row[2],
+               category: row[3],
+               amount: row[4]
+             });
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch recent missing receipts:", err.message);
+    }
+
+    const missingReceiptsContext = recentMissingReceipts.length > 0 ? 
+      `\nThe user has recently reported these expenses WITHOUT a receipt:\n${JSON.stringify(recentMissingReceipts)}\nIf you determine that the document you are analyzing is the receipt for one of these previously reported expenses (match by vendor, date, or amount), output its "matchedRowIndex". If you notice a discrepancy between the user's reported amount and the actual amount on the receipt, output a "correctionMessage" in Hebrew explaining the difference (e.g. "שמתי לב שדיווחת על 300 ₪, אבל בקבלה מופיע 250 ₪. רשמתי את הקבלה ככפולה לבדיקתך"). ALWAYS extract the ACTUAL correct amount from the receipt itself for "totalAmount".\n` : "";
+
     const docType = isInsolvency ? "insolvency document" : "financial document";
-    const prompt = `Analyze this ${docType} (invoice/receipt). The document might be in Hebrew or English and may contain MULTIPLE receipts or invoices.
+    const prompt = `Analyze this ${docType} (invoice/receipt). The document might be in Hebrew or English and may contain MULTIPLE receipts or invoices.${missingReceiptsContext}
 Extract the details for EACH distinct receipt found and return ONLY a valid JSON ARRAY of objects. Each object must have these EXACT keys:
 - "type": (e.g. "Invoice", "Receipt", "חשבונית מס", "קבלה")
 - "vendor": (Name of the business/person who issued it, in Hebrew if possible)
@@ -71,6 +101,8 @@ Extract the details for EACH distinct receipt found and return ONLY a valid JSON
 - "currency": (e.g. "ILS", "USD", "EUR")
 - "date": (Format as DD/MM/YYYY if possible, or extract as written)
 - "pageNumber": (The page number in the PDF where this specific receipt is located. 1-indexed. e.g., 1, 2, 3... If it's an image, just return 1)
+- "matchedRowIndex": (If this receipt matches one of the missing receipts above, output its rowIndex. Otherwise null)
+- "correctionMessage": (If it matched a row but the amounts are different, output a friendly Hebrew warning. Otherwise null)
 
 If there is only one receipt, return an array with one object. If you cannot find a specific field, do your best to infer it from the context or leave it as "Unknown". Do not return an empty array. ONLY return the raw JSON array without markdown formatting.`;
     let mimeType = file.mimetype;
@@ -335,6 +367,12 @@ If there is only one receipt, return an array with one object. If you cannot fin
         const newItemAmount = parseFloat(item.totalAmount || 0);
         const normalizedItemVendor = normalizeVendor(item.vendor);
         
+        // If AI matched it with a previous row (discrepancy or exact), flag as Duplicate
+        if (item.matchedRowIndex || item.correctionMessage) {
+           isDuplicate = true;
+           console.log(`AI identified this as a match for row ${item.matchedRowIndex}. Marking as Duplicate.`);
+        }
+        
         // Skip header row usually at index 0, but loop all to be safe
         for (let i = 1; i < existingRows.length; i++) {
           const row = existingRows[i];
@@ -346,6 +384,7 @@ If there is only one receipt, return an array with one object. If you cannot fin
              if (existingDate === item.date && existingAmount === newItemAmount && normalizeVendor(existingVendor) === normalizedItemVendor) {
                 isDuplicate = true;
                 console.log(`Duplicate found for vendor ${item.vendor} on ${item.date} for ${newItemAmount}`);
+                item.correctionMessage = item.correctionMessage || "זוהתה חשבונית כפולה. החשבונית נוספה ככפולה לבדיקתך בדשבורד.";
                 break;
              }
           }

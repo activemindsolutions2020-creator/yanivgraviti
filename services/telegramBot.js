@@ -136,16 +136,30 @@ export const initTelegramBot = () => {
       });
 
       if (apiRes.data.success) {
-        const results = apiRes.data.results || [];
+        const results = apiRes.data.data || apiRes.data.results || [];
         let replyMsg = "✅ *פענוח הושלם בהצלחה!*\n\n";
+        let hasCorrection = false;
+        
         results.forEach(res => {
-           const data = res.extractedData || {};
-           replyMsg += `📄 *${data.ExpenseName || 'הוצאה כללית'}*\n`;
-           replyMsg += `💰 סכום: ₪${data.TotalAmount || 0}\n`;
-           replyMsg += `📅 תאריך: ${data.Date || 'לא זוהה'}\n`;
-           replyMsg += `🏷️ קטגוריה: ${data.Category || 'אחר'}\n\n`;
+           // Handle both old and new response formats
+           const data = res.extractedData || res;
+           
+           if (data.correctionMessage) {
+             hasCorrection = true;
+             replyMsg += `⚠️ *שים לב:* ${data.correctionMessage}\n\n`;
+           }
+           
+           replyMsg += `📄 *${data.ExpenseName || data.vendor || 'הוצאה כללית'}*\n`;
+           replyMsg += `💰 סכום: ₪${data.TotalAmount !== undefined ? data.TotalAmount : (data.totalAmount || 0)}\n`;
+           replyMsg += `📅 תאריך: ${data.Date || data.date || 'לא זוהה'}\n`;
+           replyMsg += `🏷️ קטגוריה: ${data.Category || data.category || 'אחר'}\n\n`;
         });
-        replyMsg += "📊 הנתונים נשמרו בהצלחה במערכת!";
+        
+        if (!hasCorrection) {
+          replyMsg += "📊 הנתונים נשמרו בהצלחה במערכת!";
+        } else {
+          replyMsg += "החשבונית נשמרה בסטטוס כפול לבדיקתך בדשבורד.";
+        }
         bot.sendMessage(chatId, replyMsg, { parse_mode: 'Markdown' });
       } else {
         bot.sendMessage(chatId, "❌ ה-AI לא הצליח לפענח את הקבלה.");

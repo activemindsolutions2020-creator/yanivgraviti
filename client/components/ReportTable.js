@@ -341,7 +341,7 @@ export default function ReportTable({ userEmail, onDataLoaded }) {
   const getStatusColor = (status) => {
     if (status === 'דווח בהצלחה') return 'bg-blue-100 text-blue-700';
     if (status === 'דווח ידנית') return 'bg-green-100 text-green-700';
-    if (status === 'כפילות חשודה') return 'bg-rose-100 text-rose-700 animate-pulse border border-rose-300';
+    if (status === 'כפילות חשודה') return 'bg-orange-100 text-orange-800 font-extrabold animate-pulse border-2 border-orange-400';
     if (status === 'מבוטל') return 'bg-gray-100 text-gray-700';
     return 'bg-yellow-100 text-yellow-700'; // Pending
   };
