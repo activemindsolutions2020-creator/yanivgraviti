@@ -82,13 +82,15 @@ If there is only one receipt, return an array with one object. If you cannot fin
     let firstError = null;
     let success = false;
 
-    // Loop through keys first, so if one is rate-limited we try the next
-    for (const activeKey of keys) {
-      const genAI = new GoogleGenerativeAI(activeKey);
+    // Loop through models FIRST. If gemini-2.5-flash exhausts its tiny 20/day quota, we MUST fallback to gemini-2.0-flash!
+    for (const modelName of MODELS_TO_TRY) {
+      console.log(`\n--- Trying model: ${modelName} ---`);
       
-      for (const modelName of MODELS_TO_TRY) {
+      // Try each key for the current model
+      for (const activeKey of keys) {
         try {
           console.log(`Attempting to analyze using model: ${modelName} with API Key ending in ...${activeKey.slice(-4)}`);
+          const genAI = new GoogleGenerativeAI(activeKey);
           const model = genAI.getGenerativeModel({ 
             model: modelName,
             generationConfig: { responseMimeType: "application/json" }
@@ -100,27 +102,26 @@ If there is only one receipt, return an array with one object. If you cannot fin
           
           console.log(`Successfully analyzed using model: ${modelName}`);
           success = true;
-          break; // Break the model loop
+          break; // Break the KEY loop, we succeeded!
         } catch (error) {
           console.warn(`Model ${modelName} failed with key ...${activeKey.slice(-4)}. Error: ${error.message}`);
           if (!firstError) firstError = error; // Store the first real error
           
-          // If it's a 429 (rate limit), this entire KEY is exhausted. Break model loop and go to NEXT KEY.
-          if (error.message && (error.message.includes("429") || error.message.includes("Too Many Requests"))) {
-             console.log(`Rate limit hit! Skipping remaining models for this key and rotating to next key...`);
-             break; // Break model loop, continue key loop
+          // If 429 or 503, try the NEXT KEY for this same model.
+          // If all keys fail, the outer loop will naturally move to the NEXT MODEL.
+          if (error.message && (error.message.includes("429") || error.message.includes("Too Many Requests") || error.message.includes("503"))) {
+             console.log(`Rate limit or 503 hit on key! Moving to next key...`);
+             continue; // Go to next key
           }
           
-          // If it's a 400 error (invalid key/mimetype), the key is bad or file is bad.
+          // If 400, key is invalid or payload is bad
           if (error.message && (error.message.includes("400") || error.message.includes("API key not valid"))) {
-             break; // Break model loop, continue key loop
+             continue; // Go to next key
           }
-          
-          // If 503 (server overloaded), we just naturally let it loop to the next fallback model.
         }
       }
       
-      if (success) break; // Break the key loop if we succeeded!
+      if (success) break; // Break the MODEL loop if we got a successful response!
     }
 
     if (!resultText) {
