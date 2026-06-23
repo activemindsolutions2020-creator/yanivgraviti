@@ -24,8 +24,30 @@ export const initTelegramBot = () => {
     return null;
   }
 
-  bot = new TelegramBot(token, { polling: true });
-  console.log("🤖 Telegram Bot initialized and polling...");
+  const webhookUrl = process.env.RENDER_EXTERNAL_URL || process.env.WEBHOOK_URL;
+  if (webhookUrl) {
+    bot = new TelegramBot(token, { polling: false });
+    const webhookPath = `/api/telegram-webhook/${token}`;
+    bot.setWebHook(`${webhookUrl}${webhookPath}`)
+      .then(() => {
+        console.log(`🤖 Telegram Bot initialized with webhook at: ${webhookUrl}${webhookPath}`);
+      })
+      .catch(err => {
+        console.error(`❌ Failed to set Telegram Webhook:`, err);
+      });
+  } else {
+    bot = new TelegramBot(token, { polling: false });
+    bot.deleteWebHook()
+      .then(() => {
+        bot.startPolling();
+        console.log("🤖 Telegram Bot initialized and polling...");
+      })
+      .catch(err => {
+        console.error("❌ Failed to delete webhook before polling:", err);
+        bot.startPolling();
+        console.log("🤖 Telegram Bot initialized and polling (with warning)...");
+      });
+  }
 
   const spreadsheetId = process.env.SPREADSHEET_ID;
 

@@ -16,7 +16,7 @@ import adminRoutes from './routes/admin.js';
 dotenv.config();
 
 // Initialize Telegram Bot
-import { initTelegramBot } from './services/telegramBot.js';
+import { initTelegramBot, bot } from './services/telegramBot.js';
 initTelegramBot();
 
 // Initialize Cron Jobs
@@ -152,6 +152,24 @@ app.use('/api/manual', manualRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/admin', adminRoutes);
+
+// Telegram Webhook Endpoint
+app.post('/api/telegram-webhook/:token', (req, res) => {
+  const { token } = req.params;
+  
+  if (token !== process.env.TELEGRAM_BOT_TOKEN) {
+    console.warn("⚠️ Unauthorized webhook request received.");
+    return res.status(401).send('Unauthorized');
+  }
+  
+  if (bot && typeof bot.processUpdate === 'function') {
+    bot.processUpdate(req.body);
+  } else {
+    console.warn("⚠️ Telegram bot is not initialized to handle webhook update.");
+  }
+  
+  res.status(200).send('OK');
+});
 
 // Start Cron Service dynamically after all exports (like sheets) are fully initialized
 import('./services/cron.js').catch(err => console.error('Failed to load cron service:', err));
