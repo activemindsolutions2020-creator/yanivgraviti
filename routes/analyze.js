@@ -97,7 +97,7 @@ Extract the details for EACH distinct receipt found and return ONLY a valid JSON
 - "type": (e.g. "Invoice", "Receipt", "חשבונית מס", "קבלה")
 - "vendor": (Name of the business/person who issued it, in Hebrew if possible)
 - "category": (MUST be ONE of the exact following official Israeli trustee report categories. For EXPENSES: "שכר דירה", "משכנתא", "מיסי עירייה", "כלכלה (מזון)", "טלפון, כבלים ואינטרנט", "טלפון נייד", "גז", "ועד בית", "מים", "חשמל", "תשלום חודשי לממונה", "הוצאות רפואיות", "נסיעות לעבודה", "טיפול בילדים", "תשלום מזונות", "נסיעות אחרות", "אחזקת רכב", "חינוך ותרבות", "הלבשה", "הוצאות נוספות". For INCOME: "משכורת נטו", "הכנסה מעסק", "פנסיה", "שכר דירה (הכנסה)", "קצבאות ביטוח לאומי", "מזונות (הכנסה)", "הכנסות נוספות". Do NOT invent new categories.)
-- "totalAmount": (Numeric value only, e.g. 150.50. If not found, use 0)
+- "totalAmount": (Numeric value only, e.g. 150.50. IMPORTANT: Extract the GRAND TOTAL amount of the purchase. If there is a split payment, such as credit card + vouchers, make sure to return the full original total, not just the part paid by one specific method. If not found, use 0)
 - "currency": (e.g. "ILS", "USD", "EUR")
 - "date": (Format as DD/MM/YYYY if possible, or extract as written)
 - "pageNumber": (The page number in the PDF where this specific receipt is located. 1-indexed. e.g., 1, 2, 3... If it's an image, just return 1)
