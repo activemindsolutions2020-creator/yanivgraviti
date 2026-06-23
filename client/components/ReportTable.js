@@ -75,6 +75,7 @@ export default function ReportTable({ userEmail }) {
       let failCount = 0;
       let skipCount = 0;
       let errMsgs = [];
+      const processedUrls = new Set();
 
       // 2. Process each invoice file
       for (const inv of items) {
@@ -82,6 +83,13 @@ export default function ReportTable({ userEmail }) {
           skipCount++;
           continue;
         }
+        
+        if (processedUrls.has(inv.driveFileId)) {
+          // If multiple invoices share the same file (e.g. bulk PDF upload), only attach it once
+          successCount++;
+          continue;
+        }
+        processedUrls.add(inv.driveFileId);
         
         try {
           let fileUrl;
