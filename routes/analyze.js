@@ -6,6 +6,7 @@ dotenv.config(); // Ensure env vars are loaded before Cloudinary configures itse
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { drive, sheets } from "../server.js";
 import { v2 as cloudinary } from "cloudinary";
+import JSON5 from "json5";
 
 const router = express.Router();
 
@@ -138,7 +139,7 @@ If there is only one receipt, return an array with one object. If you cannot fin
 
     let parsedResult;
     try {
-      parsedResult = JSON.parse(resultText);
+      parsedResult = JSON5.parse(resultText);
       // Ensure the result is an array
       if (!Array.isArray(parsedResult)) {
         parsedResult = [parsedResult];
