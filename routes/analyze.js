@@ -136,7 +136,7 @@ If there is only one receipt, return an array with one object. If you cannot fin
     
     // Fix common LLM JSON syntax errors
     resultText = resultText.replace(/,\s*([\]}])/g, '$1'); // Trailing commas
-    resultText = resultText.replace(/(?<!\\)בע"מ/g, 'בע\\"מ'); // Unescaped Ltd quotes (Very common in Hebrew)
+    resultText = resultText.replace(/(?<!\\)בע"([א-תa-zA-Z])/g, 'בע\\"$1'); // Unescaped Ltd quotes with any letter (e.g. בע"מ, בע"p, בע"פ)
 
     let parsedResult;
     try {
