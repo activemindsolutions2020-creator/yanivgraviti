@@ -108,11 +108,11 @@ If there is only one receipt, return an array with one object. If you cannot fin
             if (retries >= 0) {
               let waitTime = 3000; // Default 3 seconds
               
-              // Extract retry time if present (e.g., "Please retry in 20.557359196s")
+              // Extract retry time if present
               const retryMatch = error.message.match(/retry in ([\d\.]+)s/i);
               if (retryMatch && retryMatch[1]) {
                 const requestedDelay = parseFloat(retryMatch[1]) * 1000;
-                waitTime = Math.min(requestedDelay + 1000, 30000); // Wait up to 30 seconds max
+                waitTime = Math.min(requestedDelay + 500, 5000); // Wait max 5 seconds, don't hold the browser request for 30s!
               }
 
               console.log(`Rate limit or 503 hit. Waiting ${waitTime/1000} seconds before retrying model ${modelName}...`);
