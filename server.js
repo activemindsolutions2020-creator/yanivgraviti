@@ -124,7 +124,12 @@ export function decryptData(encryptedText) {
 // Express Routes & Server Initialization
 // ============================================================================
 
-// Health check endpoint to verify server is running
+// Render default health check path
+app.get('/', (req, res) => {
+  res.status(200).send('Smart Insolvency AI Backend is running!');
+});
+
+// Health check endpoint (API specific)
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
