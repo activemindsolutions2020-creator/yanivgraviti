@@ -20,13 +20,6 @@ const upload = multer({
 });
 
 // Fallback sequence of models to try
-const MODELS_TO_TRY = [
-  "gemini-2.0-flash", 
-  "gemini-2.5-flash", 
-  "gemini-2.5-flash-lite", 
-  "gemini-1.5-pro"
-];
-
 let currentKeyIndex = 0;
 
 // POST /api/analyze - Receives multipart/form-data with 'invoiceFile'
@@ -81,6 +74,38 @@ If there is only one receipt, return an array with one object. If you cannot fin
     let resultText = null;
     let firstError = null;
     let success = false;
+
+    // Dynamically fetch available models to prevent 404 errors!
+    let MODELS_TO_TRY = [];
+    try {
+      // Use the first API key to query Google for exactly which models are currently online and available
+      const fetchReq = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${keys[0]}`);
+      const data = await fetchReq.json();
+      
+      if (data.models) {
+         MODELS_TO_TRY = data.models
+            .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent") && m.name.includes("gemini"))
+            .map(m => m.name.replace("models/", ""));
+            
+         // Sort to prioritize fast 'flash' models over 'pro', and newer versions over older ones
+         MODELS_TO_TRY.sort((a, b) => {
+            if (a.includes("flash") && !b.includes("flash")) return -1;
+            if (!a.includes("flash") && b.includes("flash")) return 1;
+            // Reverse alphabetical roughly sorts newer versions (2.5) before older (1.5)
+            return b.localeCompare(a);
+         });
+         
+         // Keep only the top 4 models so we don't wait forever if rate-limited globally
+         MODELS_TO_TRY = MODELS_TO_TRY.slice(0, 4);
+      } else {
+         throw new Error("No models array in response");
+      }
+    } catch (e) {
+      console.warn("Failed to dynamically fetch models list, using hardcoded fallback. Error:", e.message);
+      MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
+    }
+    
+    console.log(`Dynamically selected models to try in order: ${MODELS_TO_TRY.join(", ")}`);
 
     // Loop through models FIRST.
     for (const modelName of MODELS_TO_TRY) {
