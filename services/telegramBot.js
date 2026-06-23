@@ -200,15 +200,15 @@ export const initTelegramBot = () => {
       if (apiRes.data.success) {
         const { intent, replyText, expenseData } = apiRes.data;
         if (intent === "expense") {
-          let replyMsg = `✅ **ההוצאה נרשמה בהצלחה!**\n\n`;
-          replyMsg += `📄 *${expenseData.vendor || 'לא זוהה'}*\n`;
+          let replyMsg = `✅ ההוצאה נרשמה בהצלחה!\n\n`;
+          replyMsg += `📄 בית עסק: ${expenseData.vendor || 'לא זוהה'}\n`;
           replyMsg += `💰 סכום: ₪${expenseData.totalAmount || 0}\n`;
           replyMsg += `🏷️ קטגוריה: ${expenseData.category || 'אחר'}\n\n`;
-          replyMsg += replyText ? `*${replyText}*` : "📊 הנתונים נשמרו בפאנל הניהול שלך.";
-          bot.sendMessage(chatId, replyMsg, { parse_mode: 'Markdown' });
+          replyMsg += replyText ? replyText : "📊 הנתונים נשמרו בפאנל הניהול שלך.";
+          bot.sendMessage(chatId, replyMsg);
         } else {
-          // It's a chat response
-          bot.sendMessage(chatId, replyText, { parse_mode: 'Markdown' });
+          // It's a chat response. Never use parse_mode here because Gemini outputs asterisks and it crashes Telegram!
+          bot.sendMessage(chatId, replyText);
         }
       } else {
          bot.sendMessage(chatId, "❌ מצטער, לא הצלחתי להבין את הבקשה.");
