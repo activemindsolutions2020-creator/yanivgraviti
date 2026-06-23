@@ -211,14 +211,36 @@ export const initTelegramBot = () => {
                } else {
                  replyMsg += `📌 פעולה ${idx + 1}:\n`;
                }
-               replyMsg += `📄 בית עסק: ${expenseData.vendor || 'לא זוהה'} ${isMultiple ? (isIncome ? '(הכנסה)' : '(הוצאה)') : ''}\n`;
-               replyMsg += `💰 סכום: ₪${expenseData.totalAmount || 0}\n`;
-               if (isMultiple) replyMsg += `📅 תאריך: ${expenseData.date || 'לא צוין'}\n`;
-               replyMsg += `🏷️ קטגוריה: ${expenseData.category || 'אחר'}\n\n`;
+               
+               if (expenseData.category === 'UNKNOWN') {
+                 replyMsg += `📄 בית עסק: ${expenseData.vendor || 'לא זוהה'}\n`;
+                 replyMsg += `💰 סכום: ₪${expenseData.totalAmount || 0}\n`;
+                 replyMsg += `🏷️ קטגוריה: ממתין לסיווג...\n\n`;
+                 
+                 const categoriesToSuggest = Array.isArray(expenseData.suggestedCategories) && expenseData.suggestedCategories.length > 0
+                    ? expenseData.suggestedCategories 
+                    : ["כלכלה (מזון)", "הוצאות נוספות", "אחזקת רכב"];
+                    
+                 const buttons = categoriesToSuggest.map(cat => ([{ 
+                    text: cat, 
+                    callback_data: `cat_${expenseData.sheetRow}_${cat}`.substring(0, 60) 
+                 }]));
+                 
+                 bot.sendMessage(chatId, `זיהיתי הוצאה של ₪${expenseData.totalAmount} עבור ${expenseData.vendor || 'עסק לא ידוע'}. לאיזו קטגוריה לשייך אותה?`, {
+                   reply_markup: { inline_keyboard: buttons }
+                 });
+               } else {
+                 replyMsg += `📄 בית עסק: ${expenseData.vendor || 'לא זוהה'} ${isMultiple ? (isIncome ? '(הכנסה)' : '(הוצאה)') : ''}\n`;
+                 replyMsg += `💰 סכום: ₪${expenseData.totalAmount || 0}\n`;
+                 if (isMultiple) replyMsg += `📅 תאריך: ${expenseData.date || 'לא צוין'}\n`;
+                 replyMsg += `🏷️ קטגוריה: ${expenseData.category || 'אחר'}\n\n`;
+               }
             });
           }
           
-          replyMsg += replyText ? replyText : "📊 הנתונים נשמרו בפאנל הניהול שלך.";
+          if (replyText) {
+            replyMsg += replyText;
+          }
           bot.sendMessage(chatId, replyMsg);
         } else if (intent === "generate_report") {
           bot.sendMessage(chatId, replyText || "⏳ מייצר את הדו\"ח המבוקש, אנא המתן...");

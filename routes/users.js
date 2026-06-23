@@ -25,10 +25,10 @@ async function ensureUsersSheet() {
       // Add headers
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: 'Users!A1:I1',
+        range: 'Users!A1:K1',
         valueInputOption: 'USER_ENTERED',
         requestBody: {
-          values: [['Email', 'Name', 'Role', 'Status', 'CreatedAt', 'Password', 'CreatedBy', 'Phone', 'TelegramChatId']]
+          values: [['Email', 'Name', 'Role', 'Status', 'CreatedAt', 'Password', 'CreatedBy', 'Phone', 'TelegramChatId', 'ReminderDay', 'ReminderMessage']]
         }
       });
     }
@@ -49,7 +49,7 @@ router.post('/auth', async (req, res) => {
     // Fetch all users
     const getResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Users!A:I',
+      range: 'Users!A:K',
     });
 
     const rows = getResponse.data.values || [];
@@ -67,7 +67,9 @@ router.post('/auth', async (req, res) => {
           status: rows[i][3],
           createdAt: rows[i][4],
           phone: rows[i][7] || "",
-          telegramChatId: rows[i][8] || ""
+          telegramChatId: rows[i][8] || "",
+          reminderDay: rows[i][9] || "25",
+          reminderMessage: rows[i][10] || ""
         };
         break;
       }
@@ -96,16 +98,17 @@ router.post('/auth', async (req, res) => {
       name: name || email,
       role: isMainAdmin ? 'Admin' : 'User',
       status: isMainAdmin ? 'Approved' : 'Pending',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      reminderDay: "25",
+      reminderMessage: ""
     };
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Users!A:I',
+      range: 'Users!A:K',
       valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
       requestBody: {
-        values: [[newUser.email, newUser.name, newUser.role, newUser.status, newUser.createdAt, '', 'System', '', '']]
+        values: [[newUser.email, newUser.name, newUser.role, newUser.status, newUser.createdAt, '', 'System', '', '', newUser.reminderDay, newUser.reminderMessage]]
       }
     });
 

@@ -88,7 +88,8 @@ Return JSON EXACTLY in this format:
     {
       "type": "Must be either 'דיווח טלגרם - הוצאה' if it's an expense, or 'דיווח טלגרם - הכנסה' if it's an income",
       "vendor": "Name of business",
-      "category": "One of: שכר דירה, משכנתא, מיסי עירייה, כלכלה (מזון), טלפון, כבלים ואינטרנט, טלפון נייד, גז, ועד בית, מים, חשמל, תשלום חודשי לממונה, הוצאות רפואיות, נסיעות לעבודה, טיפול בילדים, תשלום מזונות, נסיעות אחרות, אחזקת רכב, חינוך ותרבות, הלבשה, הוצאות נוספות, משכורת נטו, הכנסה מעסק, פנסיה, שכר דירה (הכנסה), קצבאות ביטוח לאומי, מזונות (הכנסה), הכנסות נוספות",
+      "category": "One of: שכר דירה, משכנתא, מיסי עירייה, כלכלה (מזון), טלפון, כבלים ואינטרנט, טלפון נייד, גז, ועד בית, מים, חשמל, תשלום חודשי לממונה, הוצאות רפואיות, נסיעות לעבודה, טיפול בילדים, תשלום מזונות, נסיעות אחרות, אחזקת רכב, חינוך ותרבות, הלבשה, הוצאות נוספות, משכורת נטו, הכנסה מעסק, פנסיה, שכר דירה (הכנסה), קצבאות ביטוח לאומי, מזונות (הכנסה), הכנסות נוספות. IF YOU ARE NOT SURE, return 'UNKNOWN'.",
+      "suggestedCategories": ["If category is UNKNOWN, provide an array of exactly 3 likely category strings from the list above. Otherwise, omit this field."],
       "totalAmount": 150.50,
       "currency": "ILS",
       "date": "DD/MM/YYYY" // Determine the correct date for each month requested. If they don't specify, use the current date.
@@ -98,7 +99,7 @@ Return JSON EXACTLY in this format:
 }
 
 If INTENT is "chat":
-Read their history, calculate sums, provide financial advice, or answer questions.
+Act as a real-time financial advisor and calculator. Read their history carefully. If the user asks a question about their budget or expenses (e.g. "how much did I spend on food?"), calculate the exact sums from the provided JSON data and answer them accurately with numbers. Provide helpful financial advice.
 Return JSON EXACTLY in this format:
 {
   "intent": "chat",
@@ -216,12 +217,23 @@ IMPORTANT: Never use unescaped double quotes (") inside the JSON string values. 
 
        if (rowsToAppend.length > 0) {
            try {
-             await sheets.spreadsheets.values.append({
+             const appendRes = await sheets.spreadsheets.values.append({
                 spreadsheetId: process.env.SPREADSHEET_ID,
                 range: "Invoices!A:I",
                 valueInputOption: "USER_ENTERED",
                 requestBody: { values: rowsToAppend },
              });
+             
+             // Try to parse the row number: "Invoices!A42:I42" -> 42
+             const updatedRange = appendRes.data.updates.updatedRange;
+             const match = updatedRange ? updatedRange.match(/!A(\d+):/) : null;
+             let startRow = match ? parseInt(match[1], 10) : null;
+
+             if (startRow) {
+               expensesToAppend.forEach((exp, i) => {
+                 exp.sheetRow = startRow + i;
+               });
+             }
            } catch (sheetErr) {
              console.error("Failed to append voice expense:", sheetErr);
              return res.status(500).json({ success: false, message: "הפענוח הצליח אך השמירה בגוגל שיטס נכשלה." });

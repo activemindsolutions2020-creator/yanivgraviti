@@ -5,6 +5,7 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import { Users, LogOut, ShieldCheck, UserPlus, ShieldBan, Settings, Edit2 } from "lucide-react";
 import EditUserModal from "../../components/EditUserModal";
+import BroadcastPanel from "../../components/BroadcastPanel";
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession();
@@ -231,6 +232,8 @@ export default function AdminDashboard() {
               </button>
             </form>
           </div>
+
+          {session.user.role === 'Admin' && <BroadcastPanel users={users} adminEmail={session.user.email} />}
 
           {/* Users Table Card */}
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">

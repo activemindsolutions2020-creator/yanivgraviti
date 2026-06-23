@@ -10,6 +10,8 @@ export default function ProfileForm({ userEmail }) {
     phoneNumber: "",
     govToken: "",
     geminiApiKey: "",
+    reminderDay: "25",
+    reminderMessage: "",
   });
   const [status, setStatus] = useState(null);
 
@@ -97,6 +99,34 @@ export default function ProfileForm({ userEmail }) {
             איך משיגים?
           </a>
         </div>
+        
+        <div className="flex gap-4">
+          <div className="w-1/3">
+            <label className="block text-xs font-medium text-slate-500 mb-1">יום תזכורת חודשי</label>
+            <select
+              name="reminderDay"
+              value={formData.reminderDay}
+              onChange={handleChange}
+              className="w-full p-3.5 rounded-lg border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700"
+            >
+              {[...Array(31)].map((_, i) => (
+                <option key={i+1} value={i+1}>{i+1}</option>
+              ))}
+            </select>
+          </div>
+          <div className="w-2/3">
+            <label className="block text-xs font-medium text-slate-500 mb-1">הודעת תזכורת מותאמת אישית</label>
+            <textarea
+              name="reminderMessage"
+              placeholder="בוקר טוב! תזכורת קטנה להעלות קבלות..."
+              value={formData.reminderMessage}
+              onChange={handleChange}
+              rows="2"
+              className="w-full p-3.5 rounded-lg border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700 resize-none"
+            />
+          </div>
+        </div>
+
         <div className="relative">
           <input
             type="password"
