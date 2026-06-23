@@ -230,9 +230,16 @@ If there is only one receipt, return an array with one object. If you cannot fin
 
       console.log(`Appending rows to Google Sheets...`);
       
+      const normalizeVendor = (str) => {
+        if (!str) return "";
+        // Remove common Ltd suffixes and all non-alphanumeric characters for fuzzy matching
+        return str.replace(/בע"מ|בע"ים|בעמ|בע"p/g, "").replace(/[^א-תa-zA-Z0-9]/g, "").trim();
+      };
+
       const rowsToAppend = parsedResult.map(item => {
         let isDuplicate = false;
         const newItemAmount = parseFloat(item.totalAmount || 0);
+        const normalizedItemVendor = normalizeVendor(item.vendor);
         
         // Skip header row usually at index 0, but loop all to be safe
         for (let i = 1; i < existingRows.length; i++) {
@@ -242,7 +249,7 @@ If there is only one receipt, return an array with one object. If you cannot fin
              const existingVendor = row[2];
              const existingAmount = parseFloat(row[4] || 0);
              
-             if (existingDate === item.date && existingVendor === item.vendor && existingAmount === newItemAmount) {
+             if (existingDate === item.date && existingAmount === newItemAmount && normalizeVendor(existingVendor) === normalizedItemVendor) {
                 isDuplicate = true;
                 console.log(`Duplicate found for vendor ${item.vendor} on ${item.date} for ${newItemAmount}`);
                 break;

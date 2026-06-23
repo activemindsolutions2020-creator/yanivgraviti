@@ -328,12 +328,13 @@ export default function ReportTable({ userEmail }) {
 
   const translateStatus = (status) => {
     if (!status) return 'ממתין לדיווח';
-    if (status === 'Reported' || status === 'Reported ') return 'דווח בהצלחה';
-    if (status === 'Pending' || status === 'Pending ') return 'ממתין לדיווח';
-    if (status === 'Reported Manually' || status === 'Reported Manually ') return 'דווח ידנית';
-    if (status === 'Duplicate') return 'כפילות חשודה';
-    if (status === 'מבוטל') return 'מבוטל';
-    return status;
+    const cleanStatus = status.trim();
+    if (cleanStatus === 'Reported') return 'דווח בהצלחה';
+    if (cleanStatus === 'Pending') return 'ממתין לדיווח';
+    if (cleanStatus === 'Reported Manually') return 'דווח ידנית';
+    if (cleanStatus === 'Duplicate') return 'כפילות חשודה';
+    if (cleanStatus === 'מבוטל') return 'מבוטל';
+    return cleanStatus;
   };
 
   const getStatusColor = (status) => {
