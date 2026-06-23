@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useMemo } from 'react';
-import { AlertCircle, Printer, FileX, Calendar } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { AlertCircle, Printer, FileX, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function MissingReceipts({ invoices }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   const missingReceipts = useMemo(() => {
     if (!invoices || !Array.isArray(invoices)) return [];
     
@@ -44,27 +46,35 @@ export default function MissingReceipts({ invoices }) {
   }
 
   return (
-    <div dir="rtl" className="bg-white border border-rose-200 p-6 rounded-2xl shadow-sm mb-8 print:border-none print:shadow-none print:p-0">
-      <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+    <div dir="rtl" className="bg-white border border-rose-200 rounded-2xl shadow-sm mb-8 print:border-none print:shadow-none print:p-0 overflow-hidden">
+      <div 
+        className={`flex items-center justify-between p-6 cursor-pointer hover:bg-rose-50/50 transition-colors ${isOpen ? 'border-b border-slate-100' : ''}`}
+        onClick={() => setIsOpen(!isOpen)}
+      >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center text-rose-600">
             <FileX size={20} />
           </div>
           <div>
-            <h3 className="text-xl font-bold text-slate-800">דוח חוסרים (בקרה אוטומטית)</h3>
-            <p className="text-slate-500 text-sm">נמצאו {missingReceipts.length} עסקאות ללא קבלה או מסמך מצורף</p>
+            <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+               דוח חוסרים (בקרה אוטומטית)
+               {isOpen ? <ChevronUp size={20} className="text-slate-400" /> : <ChevronDown size={20} className="text-slate-400" />}
+            </h3>
+            <p className="text-slate-500 text-sm">נמצאו {missingReceipts.length} עסקאות ללא קבלה או מסמך מצורף (לחץ להצגה)</p>
           </div>
         </div>
         <button 
-          onClick={handlePrint}
+          onClick={(e) => { e.stopPropagation(); handlePrint(); }}
           className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors text-sm font-medium print:hidden"
         >
           <Printer size={16} />
-          הדפס דוח חוסרים
+          הדפס דוח
         </button>
       </div>
 
-      <div className="overflow-x-auto print:overflow-visible">
+      {isOpen && (
+        <div className="p-6 pt-0">
+          <div className="overflow-x-auto print:overflow-visible">
         <table className="w-full text-right border-collapse">
           <thead>
             <tr className="bg-slate-50 text-slate-500 text-sm border-b border-slate-200">
@@ -97,6 +107,8 @@ export default function MissingReceipts({ invoices }) {
           </tbody>
         </table>
       </div>
+      </div>
+      )}
       
       <div className="mt-4 text-sm text-slate-400 text-center print:block hidden">
         דוח חוסרים הופק אוטומטית ממערכת Smart Insolvency בתאריך {new Date().toLocaleDateString('he-IL')}
