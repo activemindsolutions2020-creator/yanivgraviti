@@ -14,6 +14,9 @@ export default function ProfileForm({ userEmail }) {
     reminderMessage: "",
     monthlyBudget: "",
     isInsolvency: false,
+    accountantPhone: "",
+    sendReportToTelegram: false,
+    sendReportToAccountantTelegram: false,
   });
   const [status, setStatus] = useState(null);
 
@@ -106,6 +109,41 @@ export default function ProfileForm({ userEmail }) {
           onChange={handleChange}
           className="w-full p-3.5 rounded-lg border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700"
         />
+
+        <div className="border-t border-slate-200 pt-4 mt-2">
+          <h3 className="text-sm font-bold text-slate-800 mb-3">הגדרות סוף חודש (דוח אוטומטי)</h3>
+          
+          <input
+            type="tel"
+            name="accountantPhone"
+            placeholder="טלפון נייד רואה חשבון / עו״ד (לשליחת הדוח)"
+            value={formData.accountantPhone}
+            onChange={handleChange}
+            className="w-full p-3.5 rounded-lg border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700 mb-4"
+          />
+
+          <div className="flex flex-col gap-3">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.sendReportToTelegram}
+                onChange={(e) => setFormData({ ...formData, sendReportToTelegram: e.target.checked })}
+                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+              />
+              <span className="text-sm font-medium text-slate-700">שלח לי עותק לטלגרם ב-1 לכל חודש</span>
+            </label>
+            
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.sendReportToAccountantTelegram}
+                onChange={(e) => setFormData({ ...formData, sendReportToAccountantTelegram: e.target.checked })}
+                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+              />
+              <span className="text-sm font-medium text-slate-700">שלח עותק אוטומטי לטלגרם של רואה החשבון/עו״ד</span>
+            </label>
+          </div>
+        </div>
         <div className="relative">
           <input
             type="password"

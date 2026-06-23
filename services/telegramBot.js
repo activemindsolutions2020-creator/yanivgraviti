@@ -2,6 +2,8 @@ import TelegramBot from 'node-telegram-bot-api';
 import { sheets } from '../server.js';
 import axios from 'axios';
 import FormData from 'form-data';
+import fs from 'fs';
+import path from 'path';
 
 const normalizePhone = (phone) => {
   if (!phone) return "";
@@ -103,9 +105,28 @@ export const initTelegramBot = () => {
           reply_markup: { remove_keyboard: true }
         });
       } else {
-        bot.sendMessage(chatId, `❌ מצטער, לא מצאתי את המספר שלך (${contactPhone}) במערכת.\nאנא בקש ממנהל המערכת להוסיף את מספר הטלפון שלך לפרופיל ונסה שוב.`, {
-          reply_markup: { remove_keyboard: true }
-        });
+        // Check if it's an accountant
+        const usersFile = path.join(process.cwd(), 'data', 'users.json');
+        let accountantForUser = null;
+        if (fs.existsSync(usersFile)) {
+            const usersJson = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+            const accUserIndex = usersJson.findIndex(u => normalizePhone(u.accountantPhone) === normalizedContact);
+            if (accUserIndex > -1) {
+                accountantForUser = usersJson[accUserIndex];
+                usersJson[accUserIndex].accountantChatId = String(chatId);
+                fs.writeFileSync(usersFile, JSON.stringify(usersJson, null, 2));
+            }
+        }
+
+        if (accountantForUser) {
+          bot.sendMessage(chatId, `✅ אימות הושלם!\nזוהית כרואה החשבון / עורך הדין של ${accountantForUser.userEmail}.\nמעתה תקבל לכאן דוחות סיכום חודשיים עבור הלקוח.`, {
+            reply_markup: { remove_keyboard: true }
+          });
+        } else {
+          bot.sendMessage(chatId, `❌ מצטער, לא מצאתי את המספר שלך (${contactPhone}) במערכת.\nאנא בקש ממנהל המערכת להוסיף את מספר הטלפון שלך לפרופיל ונסה שוב.`, {
+            reply_markup: { remove_keyboard: true }
+          });
+        }
       }
     } catch (err) {
       console.error("Error during contact auth:", err);

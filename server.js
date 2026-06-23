@@ -19,6 +19,10 @@ dotenv.config();
 import { initTelegramBot } from './services/telegramBot.js';
 initTelegramBot();
 
+// Initialize Cron Jobs
+import { startCronJobs } from './services/cronJobs.js';
+startCronJobs();
+
 // Initialize Express app
 const app = express();
 

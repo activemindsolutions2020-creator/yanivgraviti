@@ -18,7 +18,7 @@ if (!fs.existsSync(DATA_FILE)) {
 // POST /api/profile - Handles profile data submission
 router.post('/', (req, res) => {
   try {
-    const { userEmail, idNumber, caseNumber, phoneNumber, govToken, geminiApiKey, reminderDay, reminderMessage, monthlyBudget, isInsolvency } = req.body;
+    const { userEmail, idNumber, caseNumber, phoneNumber, govToken, geminiApiKey, reminderDay, reminderMessage, monthlyBudget, isInsolvency, accountantPhone, sendReportToTelegram, sendReportToAccountantTelegram } = req.body;
 
     // Validate that userEmail is provided
     if (!userEmail) {
@@ -33,7 +33,7 @@ router.post('/', (req, res) => {
     
     // Find if user exists
     const userIndex = users.findIndex(u => u.userEmail === userEmail);
-    const newUserData = { userEmail, idNumber, caseNumber, phoneNumber, govToken, geminiApiKey, reminderDay, reminderMessage, monthlyBudget, isInsolvency: isInsolvency === true };
+    const newUserData = { userEmail, idNumber, caseNumber, phoneNumber, govToken, geminiApiKey, reminderDay, reminderMessage, monthlyBudget, isInsolvency: isInsolvency === true, accountantPhone, sendReportToTelegram: sendReportToTelegram === true, sendReportToAccountantTelegram: sendReportToAccountantTelegram === true };
 
     if (userIndex > -1) {
       users[userIndex] = { ...users[userIndex], ...newUserData };
