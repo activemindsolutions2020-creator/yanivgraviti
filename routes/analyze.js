@@ -134,8 +134,9 @@ If there is only one receipt, return an array with one object. If you cannot fin
       resultText = jsonMatch[0];
     }
     
-    // Fix common LLM JSON syntax errors (like trailing commas)
-    resultText = resultText.replace(/,\s*([\]}])/g, '$1');
+    // Fix common LLM JSON syntax errors
+    resultText = resultText.replace(/,\s*([\]}])/g, '$1'); // Trailing commas
+    resultText = resultText.replace(/(?<!\\)בע"מ/g, 'בע\\"מ'); // Unescaped Ltd quotes (Very common in Hebrew)
 
     let parsedResult;
     try {
@@ -146,7 +147,7 @@ If there is only one receipt, return an array with one object. If you cannot fin
       }
     } catch (parseError) {
       console.error("Failed to parse AI JSON. Raw text:", resultText);
-      return res.status(500).json({ success: false, message: `Failed to parse AI response. (Raw: ${resultText})` });
+      return res.status(500).json({ success: false, message: `JSON5 Error: ${parseError.message}. (Raw: ${resultText})` });
     }
 
     // =========================================================================
