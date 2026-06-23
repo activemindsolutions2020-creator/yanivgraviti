@@ -125,7 +125,7 @@ export const initTelegramBot = () => {
       const buffer = Buffer.from(response.data, 'binary');
 
       const formData = new FormData();
-      formData.append('files', buffer, { filename: fileName, contentType: mimeType });
+      formData.append('invoiceFile', buffer, { filename: fileName, contentType: mimeType });
       formData.append('userEmail', user.email);
       // Let the analysis route know it came from the bot
       formData.append('source', 'telegram');
