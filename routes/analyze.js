@@ -199,8 +199,8 @@ If there is only one receipt, return an array with one object. If you cannot fin
        }
     }
 
-    // 2. Assign specific fileUrls for each item if it's a PDF and has a pageNumber
-    for (const item of parsedResult) {
+    // 2. Assign specific fileUrls for each item if it's a PDF and has a pageNumber (Run Concurrently)
+    const uploadPromises = parsedResult.map(async (item) => {
       item.fileUrl = defaultFileUrl; // fallback
       
       if (pdfDoc && item.pageNumber) {
@@ -222,23 +222,20 @@ If there is only one receipt, return an array with one object. If you cannot fin
           }
         }
       }
-    }
+    });
 
-    // 2.5 Currency Conversion
-    for (const item of parsedResult) {
+    // 2.5 Currency Conversion (Run Concurrently)
+    const currencyPromises = parsedResult.map(async (item) => {
       const currency = item.currency ? item.currency.toUpperCase() : "ILS";
       if (currency !== "ILS" && currency !== "₪" && currency !== "NIS") {
         try {
           console.log(`Converting ${item.totalAmount} ${currency} to ILS...`);
-          // Using fetch which is available in Node 18+
           const response = await fetch(`https://api.exchangerate-api.com/v4/latest/${currency}`);
           const data = await response.json();
           const rate = data.rates["ILS"];
           if (rate) {
             const convertedAmount = parseFloat(item.totalAmount) * rate;
-            // Append note to vendor to preserve original context
             item.vendor = `${item.vendor || 'Unknown'} (מקור: ${item.totalAmount} ${currency})`;
-            // Update amount and currency to ILS
             item.totalAmount = convertedAmount.toFixed(2);
             item.currency = "ILS";
             console.log(`Converted to ${item.totalAmount} ILS (Rate: ${rate})`);
@@ -247,7 +244,10 @@ If there is only one receipt, return an array with one object. If you cannot fin
           console.error(`Failed to convert currency ${currency}:`, error.message);
         }
       }
-    }
+    });
+
+    // Wait for all uploads and currency conversions to finish concurrently
+    await Promise.all([...uploadPromises, ...currencyPromises]);
 
     try {
       // 2. Fetch existing rows to check for duplicates
