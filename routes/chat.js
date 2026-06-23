@@ -198,7 +198,7 @@ IMPORTANT: Never use unescaped double quotes (") inside the JSON string values. 
           const genAI = new GoogleGenerativeAI(activeKey);
           const model = genAI.getGenerativeModel({ 
              model: modelName,
-             systemInstruction: systemPrompt 
+             systemInstruction: fullSystemPrompt 
           });
           const result = await model.generateContent(contents);
           resultText = result.response.text();
