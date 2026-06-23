@@ -217,7 +217,7 @@ IMPORTANT: Never use unescaped double quotes (") inside the JSON string values. 
            try {
              await sheets.spreadsheets.values.append({
                 spreadsheetId: process.env.SPREADSHEET_ID,
-                range: "Invoices!A:G",
+                range: "Invoices!A:I",
                 valueInputOption: "USER_ENTERED",
                 requestBody: { values: rowsToAppend },
              });
