@@ -103,11 +103,20 @@ If there is only one receipt, return an array with one object. If you cannot fin
           if (!firstError) firstError = error; // Store the first real error
           
           // If it's a 503 (high demand) or 429 (rate limit), wait and retry
-          if (error.message && (error.message.includes("503") || error.message.includes("429"))) {
+          if (error.message && (error.message.includes("503") || error.message.includes("429") || error.message.includes("Too Many Requests"))) {
             retries--;
             if (retries >= 0) {
-              console.log(`Waiting 3 seconds before retrying model ${modelName}...`);
-              await new Promise(resolve => setTimeout(resolve, 3000));
+              let waitTime = 3000; // Default 3 seconds
+              
+              // Extract retry time if present (e.g., "Please retry in 20.557359196s")
+              const retryMatch = error.message.match(/retry in ([\d\.]+)s/i);
+              if (retryMatch && retryMatch[1]) {
+                const requestedDelay = parseFloat(retryMatch[1]) * 1000;
+                waitTime = Math.min(requestedDelay + 1000, 30000); // Wait up to 30 seconds max
+              }
+
+              console.log(`Rate limit or 503 hit. Waiting ${waitTime/1000} seconds before retrying model ${modelName}...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
               continue;
             }
           }
