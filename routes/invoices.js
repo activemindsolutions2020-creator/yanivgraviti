@@ -160,4 +160,40 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// PUT /api/invoices/:id/status (Update only status)
+router.put('/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ success: false, message: 'Missing status field' });
+    }
+
+    const rowIndex = parseInt(id, 10);
+    if (isNaN(rowIndex) || rowIndex < 0) {
+      return res.status(400).json({ success: false, message: 'Invalid ID' });
+    }
+
+    const rowNumber = rowIndex + 1;
+    const spreadsheetId = process.env.SPREADSHEET_ID;
+
+    // Update only the Status column (Column I)
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `Invoices!I${rowNumber}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [[status]]
+      }
+    });
+
+    return res.status(200).json({ success: true, message: 'Status updated successfully' });
+
+  } catch (error) {
+    console.error('Error updating status:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+});
+
 export default router;

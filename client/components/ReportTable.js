@@ -208,23 +208,34 @@ export default function ReportTable({ userEmail }) {
   // Expose fetchInvoices to parent if needed via an event or ref, but for now we just rely on polling or a refresh button
 
   const handleDelete = async (id) => {
-    if (!confirm("האם אתה בטוח שברצונך למחוק תנועה זו? היא תוסתר מהדוח ותוגדר כ'מבוטלת'.")) return;
-
+    if (!confirm('האם אתה בטוח שברצונך למחוק שורה זו?')) return;
     try {
-      setLoading(true);
       const res = await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/invoices/${id}?userEmail=${userEmail}`);
       if (res.data.success) {
         fetchInvoices();
       } else {
-        alert("שגיאה במחיקת התנועה: " + res.data.message);
-        setLoading(false);
+        alert(res.data.message || 'שגיאה במחיקה');
       }
     } catch (err) {
-      alert("אירעה שגיאה בתקשורת.");
       console.error(err);
-      setLoading(false);
+      alert('אירעה שגיאה במחיקה');
     }
   };
+
+  const handleApproveDuplicate = async (id) => {
+    try {
+      const res = await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/invoices/${id}/status`, { status: 'Pending' });
+      if (res.data.success) {
+        fetchInvoices();
+      } else {
+        alert(res.data.message || 'שגיאה באישור הכפילות');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('אירעה שגיאה באישור הכפילות');
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-8 bg-white border border-slate-200 shadow-sm rounded-2xl text-center">
@@ -320,6 +331,7 @@ export default function ReportTable({ userEmail }) {
     if (status === 'Reported' || status === 'Reported ') return 'דווח בהצלחה';
     if (status === 'Pending' || status === 'Pending ') return 'ממתין לדיווח';
     if (status === 'Reported Manually' || status === 'Reported Manually ') return 'דווח ידנית';
+    if (status === 'Duplicate') return 'כפילות חשודה';
     if (status === 'מבוטל') return 'מבוטל';
     return status;
   };
@@ -327,6 +339,7 @@ export default function ReportTable({ userEmail }) {
   const getStatusColor = (status) => {
     if (status === 'דווח בהצלחה') return 'bg-blue-100 text-blue-700';
     if (status === 'דווח ידנית') return 'bg-green-100 text-green-700';
+    if (status === 'כפילות חשודה') return 'bg-rose-100 text-rose-700 animate-pulse border border-rose-300';
     if (status === 'מבוטל') return 'bg-gray-100 text-gray-700';
     return 'bg-yellow-100 text-yellow-700'; // Pending
   };
@@ -378,20 +391,24 @@ export default function ReportTable({ userEmail }) {
 
     // Assuming "הכנסה" means Income and anything else is Expense
     if (inv.type && inv.type.includes("הכנסה")) {
-      groupedData[monthYearStr].totalIncome += inv.amount;
-      if (inv.status !== 'מבוטל' && inv.status !== 'Canceled') {
-        grandTotalIncome += inv.amount;
+      if (inv.status !== 'Duplicate') {
+        groupedData[monthYearStr].totalIncome += inv.amount;
+        if (inv.status !== 'מבוטל' && inv.status !== 'Canceled') {
+          grandTotalIncome += inv.amount;
+        }
       }
     } else {
-      groupedData[monthYearStr].totalExpense += inv.amount;
-      if (inv.status !== 'מבוטל' && inv.status !== 'Canceled') {
-        grandTotalExpense += inv.amount;
+      if (inv.status !== 'Duplicate') {
+        groupedData[monthYearStr].totalExpense += inv.amount;
+        if (inv.status !== 'מבוטל' && inv.status !== 'Canceled') {
+          grandTotalExpense += inv.amount;
+        }
+        // Track category expenses
+        if (!groupedData[monthYearStr].categories[hebCat]) {
+          groupedData[monthYearStr].categories[hebCat] = 0;
+        }
+        groupedData[monthYearStr].categories[hebCat] += inv.amount;
       }
-      // Track category expenses
-      if (!groupedData[monthYearStr].categories[hebCat]) {
-        groupedData[monthYearStr].categories[hebCat] = 0;
-      }
-      groupedData[monthYearStr].categories[hebCat] += inv.amount;
     }
   });
 
@@ -607,6 +624,11 @@ export default function ReportTable({ userEmail }) {
                                   ⬇️
                                 </a>
                               </>
+                            )}
+                            {inv.status === 'Duplicate' && (
+                              <button onClick={() => handleApproveDuplicate(inv.id)} className="p-2 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all" title="אשר קבלה (הסר כפילות)">
+                                ✅
+                              </button>
                             )}
                             <button onClick={() => { setEditInvoice(inv); setIsModalOpen(true); }} className="p-2 bg-slate-50 border border-slate-200 text-blue-600 rounded-lg hover:bg-blue-50 transition-all" title="ערוך">
                               ✏️

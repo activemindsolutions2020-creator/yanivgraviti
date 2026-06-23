@@ -216,20 +216,52 @@ If there is only one receipt, return an array with one object. If you cannot fin
     }
 
     try {
-      // 2. Save to Google Sheets
+      // 2. Fetch existing rows to check for duplicates
+      let existingRows = [];
+      try {
+        const response = await sheets.spreadsheets.values.get({
+          spreadsheetId: process.env.SPREADSHEET_ID,
+          range: "Invoices!A:E", // We only need Date(B), Vendor(C), Amount(E)
+        });
+        existingRows = response.data.values || [];
+      } catch (err) {
+        console.error("Failed to fetch existing rows for duplicate check:", err.message);
+      }
+
       console.log(`Appending rows to Google Sheets...`);
       
-      const rowsToAppend = parsedResult.map(item => [
-        userEmail,
-        item.date || "",
-        item.vendor || "",
-        item.category || "", 
-        item.totalAmount || 0,
-        item.currency || "ILS",
-        item.type || "",
-        item.fileUrl || defaultFileUrl || "N/A",
-        "Pending"
-      ]);
+      const rowsToAppend = parsedResult.map(item => {
+        let isDuplicate = false;
+        const newItemAmount = parseFloat(item.totalAmount || 0);
+        
+        // Skip header row usually at index 0, but loop all to be safe
+        for (let i = 1; i < existingRows.length; i++) {
+          const row = existingRows[i];
+          if (row && row.length >= 5) {
+             const existingDate = row[1];
+             const existingVendor = row[2];
+             const existingAmount = parseFloat(row[4] || 0);
+             
+             if (existingDate === item.date && existingVendor === item.vendor && existingAmount === newItemAmount) {
+                isDuplicate = true;
+                console.log(`Duplicate found for vendor ${item.vendor} on ${item.date} for ${newItemAmount}`);
+                break;
+             }
+          }
+        }
+
+        return [
+          userEmail,
+          item.date || "",
+          item.vendor || "",
+          item.category || "", 
+          item.totalAmount || 0,
+          item.currency || "ILS",
+          item.type || "",
+          item.fileUrl || defaultFileUrl || "N/A",
+          isDuplicate ? "Duplicate" : "Pending"
+        ];
+      });
 
       await sheets.spreadsheets.values.append({
         spreadsheetId: process.env.SPREADSHEET_ID,
