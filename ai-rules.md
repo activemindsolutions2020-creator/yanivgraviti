@@ -27,3 +27,8 @@ The system analyzes insolvency receipts and documents using AI, manages user pro
 ## 6. Troubleshooting
 - If a deployment or build error occurs (e.g., React Client Manifest errors), immediately check for `.next` cache issues or duplicate `package-lock.json` files.
 - Ensure correct port mapping (Backend typically on port 3000/5000, Frontend on 3001/3000) and verify `NEXT_PUBLIC_API_URL` environment variables are correct when addressing network connection issues.
+
+## 7. External APIs & AI Integrations (Google Gemini)
+- **API Key Rotation:** When integrating with Gemini on free tiers, support multiple API keys via a `GEMINI_API_KEYS` comma-separated environment variable. Rotate through these keys to mitigate standard rate limits.
+- **Dynamic Model Fetching:** Never hardcode model arrays (like `gemini-1.5-flash`). Always dynamically fetch the active models list via `https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`, filter for `supportedGenerationMethods.includes("generateContent")`, and sort to prioritize faster/newer models. This prevents 404 errors when Google updates or deprecates models in the `v1beta` API.
+- **Fail Fast on Quota Exhaustion:** If a `429 Too Many Requests` or Project-Level Quota exhaustion is hit for a specific model, immediately skip remaining keys for that model and fallback to the next available model. Never loop retry loops infinitely on 429s, as it causes severe application hangs and browser timeouts.
