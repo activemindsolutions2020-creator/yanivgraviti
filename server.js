@@ -13,6 +13,10 @@ import usersRoutes from './routes/users.js';
 // Initialize environment variables
 dotenv.config();
 
+// Initialize Telegram Bot
+import { initTelegramBot } from './services/telegramBot.js';
+initTelegramBot();
+
 // Initialize Express app
 const app = express();
 

@@ -1,16 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 
 export default function ProfileForm({ userEmail }) {
   const [formData, setFormData] = useState({
     idNumber: "",
     caseNumber: "",
+    phoneNumber: "",
     govToken: "",
     geminiApiKey: "",
   });
   const [status, setStatus] = useState(null);
+
+  useEffect(() => {
+    if (!userEmail) return;
+    axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/profile?userEmail=${userEmail}`)
+      .then(res => {
+        if (res.data.success && res.data.data) {
+          setFormData(prev => ({ ...prev, ...res.data.data }));
+        }
+      })
+      .catch(err => console.error("Error fetching profile", err));
+  }, [userEmail]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -42,6 +54,15 @@ export default function ProfileForm({ userEmail }) {
   return (
     <div className="p-8 bg-white border border-slate-200 shadow-sm rounded-2xl" dir="rtl">
       <form onSubmit={handleSubmit} className="space-y-5">
+        <input
+          type="text"
+          name="phoneNumber"
+          placeholder="מספר טלפון (לחיבור הבוט בטלגרם)"
+          value={formData.phoneNumber}
+          onChange={handleChange}
+          className="w-full p-3.5 rounded-lg border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700"
+          dir="rtl"
+        />
         <input
           type="text"
           name="idNumber"
