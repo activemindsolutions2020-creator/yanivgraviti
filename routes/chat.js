@@ -16,17 +16,20 @@ async function getUserInvoices(userEmail) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.SPREADSHEET_ID,
-      range: "Invoices!A:F",
+      range: "Invoices!A:I",
     });
     const rows = response.data.values || [];
-    // Skip header, filter by userEmail
-    const userInvoices = rows.slice(1).filter(row => row[5] === userEmail);
+    // Skip header, filter by userEmail (which is at index 0)
+    const userInvoices = rows.slice(1).filter(row => row[0] === userEmail);
     return userInvoices.map(row => ({
-      type: row[0],
+      email: row[0],
       date: row[1],
       vendor: row[2],
       category: row[3],
-      amount: row[4]
+      amount: row[4],
+      currency: row[5],
+      type: row[6],
+      status: row[8]
     }));
   } catch (err) {
     console.error("Failed to fetch user invoices for chat context:", err.message);
