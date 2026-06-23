@@ -392,16 +392,16 @@ export default function ReportTable({ userEmail }) {
 
     // Assuming "הכנסה" means Income and anything else is Expense
     if (inv.type && inv.type.includes("הכנסה")) {
-      if (inv.status !== 'Duplicate') {
+      if (inv.status?.trim() !== 'Duplicate') {
         groupedData[monthYearStr].totalIncome += inv.amount;
-        if (inv.status !== 'מבוטל' && inv.status !== 'Canceled') {
+        if (inv.status?.trim() !== 'מבוטל' && inv.status?.trim() !== 'Canceled') {
           grandTotalIncome += inv.amount;
         }
       }
     } else {
-      if (inv.status !== 'Duplicate') {
+      if (inv.status?.trim() !== 'Duplicate') {
         groupedData[monthYearStr].totalExpense += inv.amount;
-        if (inv.status !== 'מבוטל' && inv.status !== 'Canceled') {
+        if (inv.status?.trim() !== 'מבוטל' && inv.status?.trim() !== 'Canceled') {
           grandTotalExpense += inv.amount;
         }
         // Track category expenses
@@ -626,7 +626,7 @@ export default function ReportTable({ userEmail }) {
                                 </a>
                               </>
                             )}
-                            {inv.status === 'Duplicate' && (
+                            {inv.status?.trim() === 'Duplicate' && (
                               <button onClick={() => handleApproveDuplicate(inv.id)} className="p-2 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all" title="אשר קבלה (הסר כפילות)">
                                 ✅
                               </button>
