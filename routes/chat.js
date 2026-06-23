@@ -114,17 +114,37 @@ CRITICAL: Return ONLY valid JSON. Do not include markdown \`\`\`json blocks arou
 
     let resultText = null;
     let firstError = null;
+    let success = false;
 
-    // Retry logic across models/keys
-    for (let i = 0; i < keys.length; i++) {
-      const currentKey = keys[currentKeyIndex];
-      const genAI = new GoogleGenerativeAI(currentKey);
-      
-      const modelsToTry = ["gemini-1.5-pro", "gemini-1.5-flash"];
-      let success = false;
+    // Dynamically fetch available models to prevent 404 errors!
+    let MODELS_TO_TRY = [];
+    try {
+      const fetchReq = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${keys[0]}`);
+      const data = await fetchReq.json();
+      if (data.models) {
+         MODELS_TO_TRY = data.models
+            .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent") && m.name.includes("gemini"))
+            .map(m => m.name.replace("models/", ""));
+         MODELS_TO_TRY.sort((a, b) => {
+            if (a.includes("flash") && !b.includes("flash")) return -1;
+            if (!a.includes("flash") && b.includes("flash")) return 1;
+            return b.localeCompare(a);
+         });
+         MODELS_TO_TRY = MODELS_TO_TRY.slice(0, 4);
+      } else {
+         throw new Error("No models array in response");
+      }
+    } catch (e) {
+      console.warn("Failed to dynamically fetch models list, using hardcoded fallback. Error:", e.message);
+      MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
+    }
 
-      for (const modelName of modelsToTry) {
+    // Loop through models FIRST
+    for (const modelName of MODELS_TO_TRY) {
+      // Try each key
+      for (const activeKey of keys) {
         try {
+          const genAI = new GoogleGenerativeAI(activeKey);
           const model = genAI.getGenerativeModel({ 
              model: modelName,
              systemInstruction: systemPrompt 
@@ -132,20 +152,15 @@ CRITICAL: Return ONLY valid JSON. Do not include markdown \`\`\`json blocks arou
           const result = await model.generateContent(contents);
           resultText = result.response.text();
           success = true;
-          break; // Model succeeded
+          break; // Break the KEY loop
         } catch (err) {
-          if (!firstError) firstError = err;
-          if (err.status === 429) {
-             currentKeyIndex = (currentKeyIndex + 1) % keys.length;
-             break; // Go to next key
-          } else if (err.status === 404) {
-             continue; // Next model
-          } else {
-             break; // Other error
-          }
+          firstError = err;
+          if (err.message && (err.message.includes("404") || err.message.includes("not found"))) break;
+          if (err.message && (err.message.includes("429") || err.message.includes("Too Many Requests") || err.message.includes("503"))) break;
+          if (err.message && (err.message.includes("400") || err.message.includes("API key not valid"))) continue;
         }
       }
-      if (success) break;
+      if (success) break; // Break the MODEL loop
     }
 
     if (!resultText) {
