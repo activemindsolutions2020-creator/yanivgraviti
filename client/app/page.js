@@ -118,56 +118,60 @@ export default function Dashboard() {
           />
         </div>
 
-        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl min-h-[250px] flex flex-col justify-center transition-all duration-500 overflow-hidden">
-          <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
-             <FileText className="w-5 h-5 text-blue-600" />
-             <h2 className="text-xl font-bold text-slate-800">דוח תוצאות ניתוח בינה מלאכותית (פעיל)</h2>
-          </div>
-          
-          <div className="p-6">
-            {!analysisResult ? (
-              <div className="text-center p-12 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
-                <p className="text-slate-500 text-lg">התוצאות יוצגו כאן לאחר סיום עיבוד הנתונים והמסמכים שהועלו.</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3">
-                  <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-                  <span className="text-lg font-bold text-emerald-700">
-                    זוהו בהצלחה {analysisResult.length} מסמכים/חשבוניות בקובץ
+        {analysisResult && (
+          <div className="bg-white border border-blue-200 shadow-sm rounded-xl flex flex-col justify-center transition-all duration-500 overflow-hidden mb-8">
+            <div className="p-4 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between">
+               <div className="flex items-center gap-2">
+                 <FileText className="w-5 h-5 text-blue-600" />
+                 <h2 className="text-lg font-bold text-slate-800">תוצאות סריקת המסמך</h2>
+               </div>
+               <button 
+                 onClick={() => setAnalysisResult(null)}
+                 className="text-sm font-medium text-slate-400 hover:text-slate-600 px-2 py-1 bg-slate-100 rounded-md transition-colors"
+               >
+                 סגור ✕
+               </button>
+            </div>
+            
+            <div className="p-4">
+              <div className="space-y-4">
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  <span className="text-md font-bold text-emerald-700">
+                    זוהו בהצלחה {analysisResult.length} מסמכים בקובץ שהועלה
                   </span>
                 </div>
                 
-                <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-1 gap-3">
                   {analysisResult.map((item, idx) => (
-                    <div key={idx} className="p-5 rounded-xl border border-slate-200 bg-white hover:shadow-md transition-shadow grid grid-cols-2 md:grid-cols-5 gap-4 items-center">
+                    <div key={idx} className="p-4 rounded-lg border border-slate-200 bg-white hover:shadow-sm transition-shadow grid grid-cols-2 md:grid-cols-5 gap-3 items-center text-sm">
                       <div>
-                        <span className="text-xs text-slate-500 font-medium block mb-1">ספק</span>
-                        <span className="font-semibold text-slate-800">{item.vendor}</span>
+                        <span className="text-xs text-slate-400 font-medium block mb-0.5">ספק</span>
+                        <span className="font-semibold text-slate-800 truncate block">{item.vendor}</span>
                       </div>
                       <div>
-                        <span className="text-xs text-slate-500 font-medium block mb-1">סכום</span>
-                        <span className="font-bold text-blue-600" dir="ltr">{item.currency === 'ILS' ? '₪' : item.currency} {item.totalAmount}</span>
+                        <span className="text-xs text-slate-400 font-medium block mb-0.5">סכום</span>
+                        <span className="font-bold text-blue-600" dir="ltr">{item.currency === 'ILS' ? '₪' : item.currency}{item.totalAmount}</span>
                       </div>
                       <div>
-                        <span className="text-xs text-slate-500 font-medium block mb-1">תאריך</span>
+                        <span className="text-xs text-slate-400 font-medium block mb-0.5">תאריך</span>
                         <span className="font-medium text-slate-700">{item.date}</span>
                       </div>
                       <div>
-                        <span className="text-xs text-slate-500 font-medium block mb-1">קטגוריה</span>
-                        <span className="inline-flex px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">{item.category}</span>
+                        <span className="text-xs text-slate-400 font-medium block mb-0.5">קטגוריה</span>
+                        <span className="inline-flex px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold truncate max-w-full">{item.category}</span>
                       </div>
                       <div>
-                        <span className="text-xs text-slate-500 font-medium block mb-1">סוג מסמך</span>
-                        <span className="font-medium text-slate-700">{item.type}</span>
+                        <span className="text-xs text-slate-400 font-medium block mb-0.5">סוג מסמך</span>
+                        <span className="font-medium text-slate-700 truncate block">{item.type}</span>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Analytical Dashboard */}
         <DashboardAnalytics invoices={dashboardData} userEmail={session.user.email} />
