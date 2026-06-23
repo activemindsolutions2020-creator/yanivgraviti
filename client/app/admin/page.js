@@ -19,6 +19,7 @@ export default function AdminDashboard() {
   const [newEmail, setNewEmail] = useState("");
   const [newName, setNewName] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [newPhone, setNewPhone] = useState("");
   const [newRole, setNewRole] = useState("User");
   const [newStatus, setNewStatus] = useState("Approved");
   const [isCreating, setIsCreating] = useState(false);
@@ -73,11 +74,13 @@ export default function AdminDashboard() {
         targetName: newName,
         targetRole: newRole,
         targetStatus: newStatus,
-        targetPassword: newPassword
+        targetPassword: newPassword,
+        targetPhone: newPhone
       });
       setNewEmail("");
       setNewName("");
       setNewPassword("");
+      setNewPhone("");
       fetchUsers();
     } catch (err) {
       alert("שגיאה ביצירת משתמש (אולי הוא כבר קיים?)");
@@ -179,6 +182,17 @@ export default function AdminDashboard() {
                   value={newPassword} 
                   onChange={e => setNewPassword(e.target.value)} 
                   placeholder="******" 
+                  className="px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-left"
+                  dir="ltr"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-slate-600 font-medium text-sm">טלפון (לבוט בטלגרם)</label>
+                <input 
+                  type="text" 
+                  value={newPhone} 
+                  onChange={e => setNewPhone(e.target.value)} 
+                  placeholder="0501234567" 
                   className="px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-left"
                   dir="ltr"
                 />

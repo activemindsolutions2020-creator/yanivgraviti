@@ -1,11 +1,9 @@
 import TelegramBot from 'node-telegram-bot-api';
-import fs from 'fs';
-import path from 'path';
+import { sheets } from '../server.js';
 
-// Helper to normalize phone numbers (convert +97250... or 97250... to 050...)
 const normalizePhone = (phone) => {
   if (!phone) return "";
-  let digits = phone.replace(/\D/g, ''); // Keep only digits
+  let digits = String(phone).replace(/\D/g, '');
   if (digits.startsWith('972')) {
     digits = '0' + digits.substring(3);
   }
@@ -20,33 +18,36 @@ export const initTelegramBot = () => {
     return null;
   }
 
-  // Create a bot that uses 'polling' to fetch new updates
   const bot = new TelegramBot(token, { polling: true });
   console.log("🤖 Telegram Bot initialized and polling...");
 
-  const DATA_FILE = path.join(process.cwd(), 'data', 'users.json');
+  const spreadsheetId = process.env.SPREADSHEET_ID;
 
-  const getUsers = () => {
-    if (!fs.existsSync(DATA_FILE)) return [];
-    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-  };
-
-  const saveUsers = (users) => {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(users, null, 2));
-  };
-
-  const getUserFromChatId = (chatId) => {
-    const users = getUsers();
-    return users.find(u => u.telegramChatId === chatId);
+  const getUserByChatId = async (chatId) => {
+    try {
+      const getResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'Users!A:I',
+      });
+      const rows = getResponse.data.values || [];
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i][8] == chatId) {
+          return { email: rows[i][0], name: rows[i][1], rowIndex: i };
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching users from sheet:", err);
+    }
+    return null;
   };
 
   // 1. Handle /start and Authentication
-  bot.onText(/\/start/, (msg) => {
+  bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
-    const user = getUserFromChatId(chatId);
+    const user = await getUserByChatId(chatId);
 
     if (user) {
-      bot.sendMessage(chatId, `שלום שוב ${msg.from.first_name}! 👋\nאני מוכן לעבודה. שלח לי קבלות או הקלטה קולית.`);
+      bot.sendMessage(chatId, `שלום שוב ${user.name}! 👋\nאני מוכן לעבודה. שלח לי קבלות או הקלטה קולית.`);
     } else {
       const opts = {
         reply_markup: {
@@ -62,45 +63,58 @@ export const initTelegramBot = () => {
   });
 
   // 2. Handle Contact Sharing (Authentication check)
-  bot.on('contact', (msg) => {
+  bot.on('contact', async (msg) => {
     const chatId = msg.chat.id;
     const contactPhone = msg.contact.phone_number;
     const normalizedContact = normalizePhone(contactPhone);
     
-    const users = getUsers();
-    let foundUser = null;
-    let userIndex = -1;
+    try {
+      const getResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'Users!A:I',
+      });
+      
+      const rows = getResponse.data.values || [];
+      let foundUserIndex = -1;
+      let foundUserName = "";
 
-    for (let i = 0; i < users.length; i++) {
-      const u = users[i];
-      if (normalizePhone(u.phoneNumber) === normalizedContact) {
-        foundUser = u;
-        userIndex = i;
-        break;
+      for (let i = 1; i < rows.length; i++) {
+        if (normalizePhone(rows[i][7]) === normalizedContact) {
+          foundUserIndex = i;
+          foundUserName = rows[i][1];
+          break;
+        }
       }
-    }
 
-    if (foundUser) {
-      // Link the chat ID
-      users[userIndex].telegramChatId = chatId;
-      saveUsers(users);
+      if (foundUserIndex !== -1) {
+        // Link the chat ID in column I (Index 8)
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `Users!I${foundUserIndex + 1}:I${foundUserIndex + 1}`,
+          valueInputOption: 'USER_ENTERED',
+          requestBody: { values: [[String(chatId)]] }
+        });
 
-      bot.sendMessage(chatId, `✅ אימות הושלם בהצלחה!\nברוך הבא, חשבונך מחובר למערכת.\n\nמה אפשר לעשות עכשיו?\n📸 צלם ושלח חשבונית\n🎙️ שלח הקלטה קולית עם פירוט הוצאה\n💬 שאל אותי שאלות על התזרים שלך`, {
-        reply_markup: { remove_keyboard: true }
-      });
-    } else {
-      bot.sendMessage(chatId, `❌ מצטער, לא מצאתי את המספר שלך (${contactPhone}) במערכת.\nאנא היכנס לאתר, עדכן את מספר הטלפון שלך בפרופיל, ונסה שוב.`, {
-        reply_markup: { remove_keyboard: true }
-      });
+        bot.sendMessage(chatId, `✅ אימות הושלם בהצלחה!\nברוך הבא ${foundUserName}, חשבונך מחובר למערכת.\n\nמה אפשר לעשות עכשיו?\n📸 צלם ושלח חשבונית\n🎙️ שלח הקלטה קולית עם פירוט הוצאה\n💬 שאל אותי שאלות על התזרים שלך`, {
+          reply_markup: { remove_keyboard: true }
+        });
+      } else {
+        bot.sendMessage(chatId, `❌ מצטער, לא מצאתי את המספר שלך (${contactPhone}) במערכת.\nאנא בקש ממנהל המערכת להוסיף את מספר הטלפון שלך לפרופיל ונסה שוב.`, {
+          reply_markup: { remove_keyboard: true }
+        });
+      }
+    } catch (err) {
+      console.error("Error during contact auth:", err);
+      bot.sendMessage(chatId, "אירעה שגיאה בבדיקת הנתונים. אנא נסה שוב מאוחר יותר.");
     }
   });
 
   // 3. Handle incoming text messages
-  bot.on('message', (msg) => {
+  bot.on('message', async (msg) => {
     if (msg.contact || msg.text === '/start') return;
 
     const chatId = msg.chat.id;
-    const user = getUserFromChatId(chatId);
+    const user = await getUserByChatId(chatId);
 
     if (!user) {
       bot.sendMessage(chatId, "אנא אמת את חשבונך תחילה על ידי שליחת /start");
@@ -108,7 +122,6 @@ export const initTelegramBot = () => {
     }
 
     if (msg.text) {
-      // For now, echo. Later, send to Gemini.
       bot.sendMessage(chatId, `קיבלתי את ההודעה שלך! כרגע המנוע הקולי/טקסטואלי בהקמה. אמרת: ${msg.text}`);
     }
   });

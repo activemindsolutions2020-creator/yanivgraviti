@@ -7,6 +7,7 @@ export default function EditUserModal({ isOpen, onClose, user, adminEmail, onSuc
   const [formData, setFormData] = useState({
     name: "",
     password: "",
+    phone: "",
     role: "User",
     status: "Approved"
   });
@@ -19,6 +20,7 @@ export default function EditUserModal({ isOpen, onClose, user, adminEmail, onSuc
       setFormData({
         name: user.name || "",
         password: "", // Always start empty, only update if typed
+        phone: user.phone || "",
         role: user.role || "User",
         status: user.status || "Approved"
       });
@@ -44,6 +46,7 @@ export default function EditUserModal({ isOpen, onClose, user, adminEmail, onSuc
         name: formData.name,
         role: formData.role,
         status: formData.status,
+        phone: formData.phone,
       };
 
       if (formData.password.trim() !== "") {
@@ -108,6 +111,19 @@ export default function EditUserModal({ isOpen, onClose, user, adminEmail, onSuc
               value={formData.password}
               onChange={handleChange}
               placeholder="******"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-left"
+              dir="ltr"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">מספר טלפון (עבור הבוט בטלגרם)</label>
+            <input
+              type="text"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              placeholder="0501234567"
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-left"
               dir="ltr"
             />

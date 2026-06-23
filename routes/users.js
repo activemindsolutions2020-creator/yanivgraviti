@@ -25,10 +25,10 @@ async function ensureUsersSheet() {
       // Add headers
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: 'Users!A1:G1',
+        range: 'Users!A1:I1',
         valueInputOption: 'USER_ENTERED',
         requestBody: {
-          values: [['Email', 'Name', 'Role', 'Status', 'CreatedAt', 'Password', 'CreatedBy']]
+          values: [['Email', 'Name', 'Role', 'Status', 'CreatedAt', 'Password', 'CreatedBy', 'Phone', 'TelegramChatId']]
         }
       });
     }
@@ -49,7 +49,7 @@ router.post('/auth', async (req, res) => {
     // Fetch all users
     const getResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Users!A:E',
+      range: 'Users!A:I',
     });
 
     const rows = getResponse.data.values || [];
@@ -65,7 +65,9 @@ router.post('/auth', async (req, res) => {
           name: rows[i][1],
           role: rows[i][2],
           status: rows[i][3],
-          createdAt: rows[i][4]
+          createdAt: rows[i][4],
+          phone: rows[i][7] || "",
+          telegramChatId: rows[i][8] || ""
         };
         break;
       }
@@ -99,11 +101,11 @@ router.post('/auth', async (req, res) => {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Users!A:G',
+      range: 'Users!A:I',
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       requestBody: {
-        values: [[newUser.email, newUser.name, newUser.role, newUser.status, newUser.createdAt, '', 'System']]
+        values: [[newUser.email, newUser.name, newUser.role, newUser.status, newUser.createdAt, '', 'System', '', '']]
       }
     });
 
@@ -213,7 +215,8 @@ router.get('/', async (req, res) => {
           role: rows[i][2],
           status: rows[i][3],
           createdAt: rows[i][4],
-          createdBy: rowCreatedBy
+          createdBy: rowCreatedBy,
+          phone: rows[i][7] || ""
         });
       }
     }
@@ -277,11 +280,11 @@ router.post('/', async (req, res) => {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Users!A:G',
+      range: 'Users!A:I',
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       requestBody: {
-        values: [[newUser.email, newUser.name, newUser.role, newUser.status, newUser.createdAt, passwordToStore, newUser.createdBy]]
+        values: [[newUser.email, newUser.name, newUser.role, newUser.status, newUser.createdAt, passwordToStore, newUser.createdBy, req.body.targetPhone || '', '']]
       }
     });
 
@@ -304,7 +307,7 @@ router.put('/:targetEmail', async (req, res) => {
     const spreadsheetId = process.env.SPREADSHEET_ID;
     const getResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Users!A:G',
+      range: 'Users!A:I',
     });
 
     const rows = getResponse.data.values || [];
@@ -340,23 +343,27 @@ router.put('/:targetEmail', async (req, res) => {
     const currentStatus = rows[targetRowIndex][3];
     const currentCreatedAt = rows[targetRowIndex][4] || '';
     const currentPassword = rows[targetRowIndex][5] || '';
+    const currentCreatedBy = rows[targetRowIndex][6] || '';
+    const currentPhone = rows[targetRowIndex][7] || '';
+    const currentTelegramChatId = rows[targetRowIndex][8] || '';
 
     // Manager cannot change roles
-    const newRole = userRole === 'Manager' ? currentRole : (role || currentRole);
-    const newName = name || currentName;
-    const newStatus = status || currentStatus;
+    const newRole = userRole === 'Manager' ? currentRole : (req.body.role || currentRole);
+    const newName = req.body.name || currentName;
+    const newStatus = req.body.status || currentStatus;
+    const newPhone = req.body.phone !== undefined ? req.body.phone : currentPhone;
     
     let newPasswordToStore = currentPassword;
-    if (password && password.trim() !== '') {
-      newPasswordToStore = encryptData(password);
+    if (req.body.password && req.body.password.trim() !== '') {
+      newPasswordToStore = encryptData(req.body.password);
     }
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `Users!B${targetRowIndex + 1}:F${targetRowIndex + 1}`,
+      range: `Users!B${targetRowIndex + 1}:I${targetRowIndex + 1}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
-        values: [[newName, newRole, newStatus, currentCreatedAt, newPasswordToStore]]
+        values: [[newName, newRole, newStatus, currentCreatedAt, newPasswordToStore, currentCreatedBy, newPhone, currentTelegramChatId]]
       }
     });
 
