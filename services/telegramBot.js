@@ -34,7 +34,7 @@ export const initTelegramBot = () => {
       const rows = getResponse.data.values || [];
       for (let i = 1; i < rows.length; i++) {
         if (rows[i][8] == chatId) {
-          return { email: rows[i][0], name: rows[i][1], rowIndex: i };
+          return { email: rows[i][0], name: rows[i][1], phone: rows[i][7], rowIndex: i };
         }
       }
     } catch (err) {
@@ -151,7 +151,12 @@ export const initTelegramBot = () => {
       }
     } catch (err) {
       console.error(err);
-      bot.sendMessage(chatId, "❌ אירעה שגיאה בעיבוד הקובץ. אנא נסה שוב.");
+      let errMsg = "❌ אירעה שגיאה בעיבוד הקובץ. אנא נסה שוב.";
+      if (user.phone && normalizePhone(user.phone) === normalizePhone("972546799182")) {
+        const errorDetails = err.response && err.response.data ? JSON.stringify(err.response.data) : err.message;
+        errMsg += `\n\n[DEBUG ERROR INFO]\n${errorDetails}`;
+      }
+      bot.sendMessage(chatId, errMsg);
     }
   };
 
