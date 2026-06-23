@@ -27,6 +27,8 @@ const MODELS_TO_TRY = [
   "gemini-2.5-pro"
 ];
 
+let currentKeyIndex = 0;
+
 // POST /api/analyze - Receives multipart/form-data with 'invoiceFile'
 router.post("/", upload.single("invoiceFile"), async (req, res) => {
   try {
@@ -37,13 +39,16 @@ router.post("/", upload.single("invoiceFile"), async (req, res) => {
       return res.status(400).json({ success: false, message: "No file uploaded." });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    const rawKeys = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY;
+    if (!rawKeys) {
       return res.status(500).json({ 
         success: false, 
-        message: "AI Service is not configured. Missing GEMINI_API_KEY." 
+        message: "AI Service is not configured. Missing GEMINI_API_KEY or GEMINI_API_KEYS." 
       });
     }
 
+    const keys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
+    
     console.log(`Analyzing file: ${file.originalname} (${file.mimetype}) for user: ${userEmail}`);
 
     const prompt = `Analyze this insolvency document (invoice/receipt). The document might be in Hebrew or English and may contain MULTIPLE receipts or invoices.
@@ -73,8 +78,6 @@ If there is only one receipt, return an array with one object. If you cannot fin
       }
     ];
 
-    // Initialize with the exact API key
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY.trim());
     let resultText = null;
     let firstError = null;
 
@@ -85,7 +88,13 @@ If there is only one receipt, return an array with one object. If you cannot fin
 
       while (retries >= 0 && !success) {
         try {
-          console.log(`Attempting to analyze using model: ${modelName} (Retries left: ${retries})`);
+          // Select key round-robin
+          const activeKey = keys[currentKeyIndex % keys.length];
+          currentKeyIndex++;
+          
+          const genAI = new GoogleGenerativeAI(activeKey);
+          
+          console.log(`Attempting to analyze using model: ${modelName} with API Key ending in ...${activeKey.slice(-4)} (Retries left: ${retries})`);
           const model = genAI.getGenerativeModel({ 
             model: modelName,
             generationConfig: { responseMimeType: "application/json" }
@@ -106,16 +115,22 @@ If there is only one receipt, return an array with one object. If you cannot fin
           if (error.message && (error.message.includes("503") || error.message.includes("429") || error.message.includes("Too Many Requests"))) {
             retries--;
             if (retries >= 0) {
+              // If we have multiple keys, retry immediately with the next key!
+              if (keys.length > 1) {
+                 console.log(`Rate limit hit! Instantly rotating to the next API key instead of waiting...`);
+                 continue; // Instantly loops and picks the next key
+              }
+              
               let waitTime = 3000; // Default 3 seconds
               
               // Extract retry time if present
               const retryMatch = error.message.match(/retry in ([\d\.]+)s/i);
               if (retryMatch && retryMatch[1]) {
                 const requestedDelay = parseFloat(retryMatch[1]) * 1000;
-                waitTime = Math.min(requestedDelay + 500, 5000); // Wait max 5 seconds, don't hold the browser request for 30s!
+                waitTime = Math.min(requestedDelay + 500, 5000); // Wait max 5 seconds
               }
 
-              console.log(`Rate limit or 503 hit. Waiting ${waitTime/1000} seconds before retrying model ${modelName}...`);
+              console.log(`Rate limit hit. Only 1 key available. Waiting ${waitTime/1000} seconds before retrying model ${modelName}...`);
               await new Promise(resolve => setTimeout(resolve, waitTime));
               continue;
             }
