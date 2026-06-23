@@ -4,11 +4,13 @@ import { useSession, signIn, signOut } from "next-auth/react";
 import ProfileForm from "../components/ProfileForm";
 import Dropzone from "../components/Dropzone";
 import ReportTable from "../components/ReportTable";
+import DashboardAnalytics from "../components/DashboardAnalytics";
 import { LogOut, ShieldCheck, FileText, CheckCircle2 } from "lucide-react";
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
   const [analysisResult, setAnalysisResult] = useState(null);
+  const [dashboardData, setDashboardData] = useState([]);
   
   // We can use a small state to trigger refresh in the ReportTable when a new file is uploaded
   const [uploadKey, setUploadKey] = useState(0);
@@ -141,8 +143,11 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Analytical Dashboard */}
+        <DashboardAnalytics invoices={dashboardData} />
+
         {/* Historical Reports Table */}
-        <ReportTable key={uploadKey} userEmail={session.user.email} />
+        <ReportTable key={uploadKey} userEmail={session.user.email} onDataLoaded={setDashboardData} />
         
       </div>
     </div>

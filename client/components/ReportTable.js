@@ -8,7 +8,7 @@ import { PDFDocument } from "pdf-lib";
 import ManualEntryModal from "./ManualEntryModal";
 import { ArrowUpDown, ArrowDown, ArrowUp, FileDown } from "lucide-react";
 
-export default function ReportTable({ userEmail }) {
+export default function ReportTable({ userEmail, onDataLoaded }) {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -189,6 +189,7 @@ export default function ReportTable({ userEmail }) {
       const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/invoices?userEmail=${userEmail}`);
       if (res.data.success) {
         setInvoices(res.data.data);
+        if (onDataLoaded) onDataLoaded(res.data.data);
       } else {
         setError(res.data.message || res.data.error || "Unknown error occurred");
       }
