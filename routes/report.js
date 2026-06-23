@@ -76,7 +76,7 @@ export const generateUserReport = async (userEmail, targetMonthYear = null) => {
       const curr = inv.currency.toUpperCase();
       if (!totals[curr]) totals[curr] = { income: 0, expense: 0 };
       
-      if (inv.type === 'הכנסה') {
+      if (inv.type && inv.type.includes('הכנסה')) {
         totals[curr].income += inv.amount;
       } else {
         totals[curr].expense += inv.amount;
@@ -86,7 +86,7 @@ export const generateUserReport = async (userEmail, targetMonthYear = null) => {
         <tr>
           <td>${inv.date}</td>
           <td>${inv.vendor}</td>
-          <td style="color: ${inv.type === 'הכנסה' ? '#16a34a' : '#dc2626'}">${inv.amount.toFixed(2)} ${inv.currency}</td>
+          <td style="color: ${(inv.type && inv.type.includes('הכנסה')) ? '#16a34a' : '#dc2626'}">${inv.amount.toFixed(2)} ${inv.currency}</td>
           <td>${inv.type}</td>
         </tr>
       `;
