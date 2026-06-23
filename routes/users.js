@@ -185,7 +185,7 @@ router.get('/', async (req, res) => {
 
     const getResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Users!A:G',
+      range: 'Users!A:K',
     });
 
     const rows = getResponse.data.values || [];
@@ -219,7 +219,10 @@ router.get('/', async (req, res) => {
           status: rows[i][3],
           createdAt: rows[i][4],
           createdBy: rowCreatedBy,
-          phone: rows[i][7] || ""
+          phone: rows[i][7] || "",
+          telegramChatId: rows[i][8] || "",
+          reminderDay: rows[i][9] || "",
+          reminderMessage: rows[i][10] || ""
         });
       }
     }
