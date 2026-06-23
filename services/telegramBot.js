@@ -12,6 +12,8 @@ const normalizePhone = (phone) => {
   return digits;
 };
 
+export let bot;
+
 export const initTelegramBot = () => {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   
@@ -20,7 +22,7 @@ export const initTelegramBot = () => {
     return null;
   }
 
-  const bot = new TelegramBot(token, { polling: true });
+  bot = new TelegramBot(token, { polling: true });
   console.log("🤖 Telegram Bot initialized and polling...");
 
   const spreadsheetId = process.env.SPREADSHEET_ID;
