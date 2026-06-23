@@ -83,7 +83,10 @@ If there is only one receipt, return an array with one object. If you cannot fin
       while (retries >= 0 && !success) {
         try {
           console.log(`Attempting to analyze using model: ${modelName} (Retries left: ${retries})`);
-          const model = genAI.getGenerativeModel({ model: modelName });
+          const model = genAI.getGenerativeModel({ 
+            model: modelName,
+            generationConfig: { responseMimeType: "application/json" }
+          });
           
           const result = await model.generateContent([prompt, ...imageParts]);
           const response = await result.response;
@@ -139,7 +142,7 @@ If there is only one receipt, return an array with one object. If you cannot fin
       }
     } catch (parseError) {
       console.error("Failed to parse AI JSON. Raw text:", resultText);
-      return res.status(500).json({ success: false, message: "Failed to parse AI response." });
+      return res.status(500).json({ success: false, message: `Failed to parse AI response. (Raw: ${resultText})` });
     }
 
     // =========================================================================
