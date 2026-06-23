@@ -215,6 +215,31 @@ If there is only one receipt, return an array with one object. If you cannot fin
       }
     }
 
+    // 2.5 Currency Conversion
+    for (const item of parsedResult) {
+      const currency = item.currency ? item.currency.toUpperCase() : "ILS";
+      if (currency !== "ILS" && currency !== "₪" && currency !== "NIS") {
+        try {
+          console.log(`Converting ${item.totalAmount} ${currency} to ILS...`);
+          // Using fetch which is available in Node 18+
+          const response = await fetch(`https://api.exchangerate-api.com/v4/latest/${currency}`);
+          const data = await response.json();
+          const rate = data.rates["ILS"];
+          if (rate) {
+            const convertedAmount = parseFloat(item.totalAmount) * rate;
+            // Append note to vendor to preserve original context
+            item.vendor = `${item.vendor || 'Unknown'} (מקור: ${item.totalAmount} ${currency})`;
+            // Update amount and currency to ILS
+            item.totalAmount = convertedAmount.toFixed(2);
+            item.currency = "ILS";
+            console.log(`Converted to ${item.totalAmount} ILS (Rate: ${rate})`);
+          }
+        } catch (error) {
+          console.error(`Failed to convert currency ${currency}:`, error.message);
+        }
+      }
+    }
+
     try {
       // 2. Fetch existing rows to check for duplicates
       let existingRows = [];
