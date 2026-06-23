@@ -21,7 +21,6 @@ const upload = multer({
 
 // Fallback sequence of models to try
 const MODELS_TO_TRY = [
-  "gemini-1.5-flash", 
   "gemini-2.0-flash", 
   "gemini-2.5-flash", 
   "gemini-2.5-flash-lite", 
@@ -83,7 +82,7 @@ If there is only one receipt, return an array with one object. If you cannot fin
     let firstError = null;
     let success = false;
 
-    // Loop through models FIRST. If gemini-2.5-flash exhausts its tiny 20/day quota, we MUST fallback to gemini-2.0-flash!
+    // Loop through models FIRST.
     for (const modelName of MODELS_TO_TRY) {
       console.log(`\n--- Trying model: ${modelName} ---`);
       
@@ -106,11 +105,16 @@ If there is only one receipt, return an array with one object. If you cannot fin
           break; // Break the KEY loop, we succeeded!
         } catch (error) {
           console.warn(`Model ${modelName} failed with key ...${activeKey.slice(-4)}. Error: ${error.message}`);
-          if (!firstError) firstError = error; // Store the first real error
+          firstError = error; // Always update so we see the LATEST error (like 429), not a masked 404 from a failed model
           
+          // If 404 (model not found), it won't exist for ANY key. Instantly jump to NEXT MODEL!
+          if (error.message && (error.message.includes("404") || error.message.includes("not found"))) {
+             console.log(`Model ${modelName} does not exist. Instantly jumping to fallback model...`);
+             break; // Break the KEY loop!
+          }
+
           // If 429 or 503, try the NEXT MODEL instantly! 
           // All keys share the same Google Project, so if one key hits a rate limit for this model, ALL keys will hit it.
-          // By breaking the KEY loop, the outer loop will naturally move to the NEXT MODEL (e.g. from 2.5-flash to 1.5-flash).
           if (error.message && (error.message.includes("429") || error.message.includes("Too Many Requests") || error.message.includes("503"))) {
              console.log(`Project rate limit hit on model ${modelName}! Instantly jumping to fallback model...`);
              break; // Break the KEY loop!
