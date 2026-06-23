@@ -200,7 +200,8 @@ export const initTelegramBot = () => {
       if (apiRes.data.success) {
         const { intent, replyText, expenseData, monthYear } = apiRes.data;
         if (intent === "expense") {
-          let replyMsg = `✅ ההוצאה נרשמה בהצלחה!\n\n`;
+          const isIncome = expenseData.type && expenseData.type.includes('הכנסה');
+          let replyMsg = isIncome ? `✅ ההכנסה נרשמה בהצלחה!\n\n` : `✅ ההוצאה נרשמה בהצלחה!\n\n`;
           replyMsg += `📄 בית עסק: ${expenseData.vendor || 'לא זוהה'}\n`;
           replyMsg += `💰 סכום: ₪${expenseData.totalAmount || 0}\n`;
           replyMsg += `🏷️ קטגוריה: ${expenseData.category || 'אחר'}\n\n`;
