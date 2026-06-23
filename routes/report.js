@@ -37,7 +37,7 @@ export const generateUserReport = async (userEmail) => {
           amount: parseFloat(row[4]) || 0,
           currency: row[5] || 'ILS',
           type: row[6],
-          driveFileId: row[7]
+          fileUrl: row[7]
         });
       }
     });
@@ -98,18 +98,23 @@ export const generateUserReport = async (userEmail) => {
       doc.text(`Amount: ${invoice.amount.toFixed(2)} ${invoice.currency}`);
       doc.moveDown();
 
-      if (!invoice.driveFileId) {
-        doc.text('[No attachment ID found for this transaction]');
+      if (!invoice.fileUrl || invoice.fileUrl === 'N/A' || invoice.fileUrl === 'Unknown') {
+        doc.text('[No attachment found for this transaction]');
         continue;
       }
 
       try {
-        const file = await drive.files.get({
-          fileId: invoice.driveFileId,
-          alt: 'media'
-        }, { responseType: 'arraybuffer' });
+        if (invoice.fileUrl.toLowerCase().endsWith('.pdf') || invoice.fileUrl.includes('.pdf')) {
+           doc.text(`[Attachment is a PDF document]`);
+           doc.fillColor('blue').text('Click here to view PDF', { link: invoice.fileUrl, underline: true });
+           doc.fillColor('black'); // Reset
+           continue;
+        }
 
-        const buffer = Buffer.from(file.data);
+        // Fetch image from Cloudinary (or any public URL)
+        const axios = (await import('axios')).default;
+        const response = await axios.get(invoice.fileUrl, { responseType: 'arraybuffer' });
+        const buffer = Buffer.from(response.data);
 
         doc.image(buffer, {
           fit: [500, 550],
@@ -117,8 +122,10 @@ export const generateUserReport = async (userEmail) => {
           valign: 'center'
         });
       } catch (err) {
-        console.error(`Failed to load/embed image for Drive ID ${invoice.driveFileId}:`, err.message);
-        doc.text(`[Attachment could not be loaded from Google Drive]`);
+        console.error(`Failed to load/embed attachment for ${invoice.fileUrl}:`, err.message);
+        doc.text(`[Attachment could not be loaded]`);
+        doc.fillColor('blue').text('Original Link', { link: invoice.fileUrl, underline: true });
+        doc.fillColor('black');
       }
     }
 

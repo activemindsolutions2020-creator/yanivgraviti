@@ -206,6 +206,21 @@ export const initTelegramBot = () => {
           replyMsg += `🏷️ קטגוריה: ${expenseData.category || 'אחר'}\n\n`;
           replyMsg += replyText ? replyText : "📊 הנתונים נשמרו בפאנל הניהול שלך.";
           bot.sendMessage(chatId, replyMsg);
+        } else if (intent === "generate_report") {
+          bot.sendMessage(chatId, replyText || "⏳ מייצר את הדו\"ח המבוקש, אנא המתן...");
+          try {
+            const { generateUserReport } = await import('../routes/report.js');
+            const result = await generateUserReport(user.email);
+            if (result.success && result.filePath) {
+               await bot.sendDocument(chatId, result.filePath);
+               bot.sendMessage(chatId, "✅ הדו\"ח נשלח בהצלחה!");
+            } else {
+               bot.sendMessage(chatId, "ℹ️ אין הוצאות/הכנסות חדשות להפיק עבורן דו\"ח כרגע.");
+            }
+          } catch (reportErr) {
+            console.error("Error generating report for bot:", reportErr);
+            bot.sendMessage(chatId, "❌ אירעה שגיאה בעת הפקת הדו\"ח.");
+          }
         } else {
           // It's a chat response. Never use parse_mode here because Gemini outputs asterisks and it crashes Telegram!
           bot.sendMessage(chatId, replyText);

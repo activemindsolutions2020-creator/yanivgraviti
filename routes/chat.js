@@ -74,8 +74,9 @@ ${JSON.stringify(userHistory, null, 2)}
 
 TASK:
 Analyze the user's message (which may be text or an audio transcript). Determine the INTENT:
-1. "expense" - The user is reporting a new expense or income (e.g., "I just paid 200 ILS for groceries at Shufersal").
-2. "chat" - The user is asking a question, asking for a report/summary of their expenses, or chatting.
+1. "expense" - The user is reporting a new expense or income.
+2. "chat" - The user is asking a question or chatting.
+3. "generate_report" - The user specifically asks to generate, download, export, or send them a PDF report of their data/invoices.
 
 If INTENT is "expense":
 Extract the details and return JSON EXACTLY in this format:
@@ -93,11 +94,18 @@ Extract the details and return JSON EXACTLY in this format:
 }
 
 If INTENT is "chat":
-Read their history, calculate any sums they asked for, provide financial advice, or answer their question about insolvency rules.
+Read their history, calculate sums, provide financial advice, or answer questions.
 Return JSON EXACTLY in this format:
 {
   "intent": "chat",
-  "replyText": "Your full response in Hebrew. Use markdown for formatting."
+  "replyText": "Your full response in Hebrew (Plain text only, NO markdown!)."
+}
+
+If INTENT is "generate_report":
+Return JSON EXACTLY in this format:
+{
+  "intent": "generate_report",
+  "replyText": "מייצר את הדו\"ח המבוקש ושולח אליך מיד..."
 }
 
 CRITICAL: Return ONLY valid JSON. Do not include markdown \`\`\`json blocks around the output.`;
