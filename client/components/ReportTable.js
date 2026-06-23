@@ -469,7 +469,7 @@ export default function ReportTable({ userEmail, onDataLoaded }) {
 
       {Object.keys(groupedData).map((monthYear) => {
         const { items, totalIncome, totalExpense, categories } = groupedData[monthYear];
-        const isExpanded = expandedMonths[monthYear] !== false; // Default to true (expanded)
+        const isExpanded = expandedMonths[monthYear] === true; // Default to false (collapsed)
 
         const sortedItems = [...items].sort((a, b) => {
           let valA = a[sortConfig.key];

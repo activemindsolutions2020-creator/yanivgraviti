@@ -5,12 +5,13 @@ import ProfileForm from "../components/ProfileForm";
 import Dropzone from "../components/Dropzone";
 import ReportTable from "../components/ReportTable";
 import DashboardAnalytics from "../components/DashboardAnalytics";
-import { LogOut, ShieldCheck, FileText, CheckCircle2 } from "lucide-react";
+import { LogOut, ShieldCheck, FileText, CheckCircle2, Settings } from "lucide-react";
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
   const [analysisResult, setAnalysisResult] = useState(null);
   const [dashboardData, setDashboardData] = useState([]);
+  const [showProfile, setShowProfile] = useState(false);
   
   // We can use a small state to trigger refresh in the ReportTable when a new file is uploaded
   const [uploadKey, setUploadKey] = useState(0);
@@ -81,7 +82,32 @@ export default function Dashboard() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 space-y-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="flex justify-end">
+          <button 
+             onClick={() => setShowProfile(!showProfile)}
+             className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors shadow-sm font-medium"
+          >
+            <Settings className="w-4 h-4" />
+            הגדרות פרופיל ובוט
+          </button>
+        </div>
+
+        {showProfile && (
+           <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-6 relative animate-in fade-in slide-in-from-top-4 duration-300">
+              <button 
+                 onClick={() => setShowProfile(false)}
+                 className="absolute top-4 left-4 text-slate-400 hover:text-slate-600 text-sm font-medium"
+              >
+                 סגור ✕
+              </button>
+              <h2 className="text-xl font-bold text-slate-800 mb-6 border-b border-slate-100 pb-4">הגדרות אישיות וחיבור לטלגרם</h2>
+              <div className="max-w-2xl">
+                 <ProfileForm userEmail={session.user.email} />
+              </div>
+           </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-8">
           <Dropzone 
             userEmail={session.user.email} 
             onUploadSuccess={(data) => {
@@ -89,7 +115,6 @@ export default function Dashboard() {
               setUploadKey(prev => prev + 1); // Trigger a refresh of the history table
             }} 
           />
-          <ProfileForm userEmail={session.user.email} />
         </div>
 
         <div className="bg-white border border-slate-200 shadow-sm rounded-2xl min-h-[250px] flex flex-col justify-center transition-all duration-500 overflow-hidden">
