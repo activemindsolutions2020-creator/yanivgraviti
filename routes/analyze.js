@@ -199,10 +199,10 @@ If there is only one receipt, return an array with one object. If you cannot fin
        }
     }
 
-    // 2. Assign specific fileUrls for each item if it's a PDF and has a pageNumber (Run Concurrently)
-    const uploadPromises = parsedResult.map(async (item) => {
+    // 2. Split PDF pages sequentially to avoid pdf-lib concurrency bug, then upload concurrently
+    const buffersToUpload = [];
+    for (const item of parsedResult) {
       item.fileUrl = defaultFileUrl; // fallback
-      
       if (pdfDoc && item.pageNumber) {
         const pageIndex = parseInt(item.pageNumber, 10) - 1;
         if (!isNaN(pageIndex) && pageIndex >= 0 && pageIndex < pdfDoc.getPageCount()) {
@@ -213,15 +213,22 @@ If there is only one receipt, return an array with one object. If you cannot fin
             newPdf.addPage(copiedPage);
             const pdfBytes = await newPdf.save();
             const buffer = Buffer.from(pdfBytes);
-            
-            const splitUrl = await uploadBufferToCloudinary(buffer);
-            item.fileUrl = splitUrl;
-            console.log(`Successfully split and uploaded page ${item.pageNumber}. URL: ${splitUrl}`);
+            buffersToUpload.push({ item, buffer });
           } catch(err) {
              console.error(`Failed to split PDF page ${item.pageNumber}:`, err.message);
           }
         }
       }
+    }
+
+    const uploadPromises = buffersToUpload.map(async ({ item, buffer }) => {
+       try {
+         const splitUrl = await uploadBufferToCloudinary(buffer);
+         item.fileUrl = splitUrl;
+         console.log(`Successfully uploaded page ${item.pageNumber}. URL: ${splitUrl}`);
+       } catch (err) {
+         console.error(`Failed to upload page ${item.pageNumber} to Cloudinary:`, err.message);
+       }
     });
 
     // 2.5 Currency Conversion (Run Concurrently)
@@ -230,7 +237,16 @@ If there is only one receipt, return an array with one object. If you cannot fin
       if (currency !== "ILS" && currency !== "₪" && currency !== "NIS") {
         try {
           console.log(`Converting ${item.totalAmount} ${currency} to ILS...`);
-          const response = await fetch(`https://api.exchangerate-api.com/v4/latest/${currency}`);
+          
+          // Add timeout to fetch to prevent hanging
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+          
+          const response = await fetch(`https://api.exchangerate-api.com/v4/latest/${currency}`, {
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          
           const data = await response.json();
           const rate = data.rates["ILS"];
           if (rate) {
