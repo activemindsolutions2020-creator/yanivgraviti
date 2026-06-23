@@ -5,6 +5,7 @@ import ProfileForm from "../components/ProfileForm";
 import Dropzone from "../components/Dropzone";
 import ReportTable from "../components/ReportTable";
 import DashboardAnalytics from "../components/DashboardAnalytics";
+import MissingReceipts from "../components/MissingReceipts";
 import { LogOut, ShieldCheck, FileText, CheckCircle2, Settings } from "lucide-react";
 
 export default function Dashboard() {
@@ -169,7 +170,10 @@ export default function Dashboard() {
         </div>
 
         {/* Analytical Dashboard */}
-        <DashboardAnalytics invoices={dashboardData} />
+        <DashboardAnalytics invoices={dashboardData} userEmail={session.user.email} />
+
+        {/* Missing Receipts Report */}
+        <MissingReceipts invoices={dashboardData} />
 
         {/* Historical Reports Table */}
         <ReportTable key={uploadKey} userEmail={session.user.email} onDataLoaded={setDashboardData} />

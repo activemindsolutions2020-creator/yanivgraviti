@@ -12,6 +12,7 @@ export default function ProfileForm({ userEmail }) {
     geminiApiKey: "",
     reminderDay: "25",
     reminderMessage: "",
+    monthlyBudget: "",
   });
   const [status, setStatus] = useState(null);
 
@@ -78,6 +79,14 @@ export default function ProfileForm({ userEmail }) {
           name="caseNumber"
           placeholder="מספר תיק"
           value={formData.caseNumber}
+          onChange={handleChange}
+          className="w-full p-3.5 rounded-lg border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700"
+        />
+        <input
+          type="number"
+          name="monthlyBudget"
+          placeholder="תקציב חודשי (₪)"
+          value={formData.monthlyBudget}
           onChange={handleChange}
           className="w-full p-3.5 rounded-lg border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700"
         />
