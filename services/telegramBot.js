@@ -1,5 +1,7 @@
 import TelegramBot from 'node-telegram-bot-api';
 import { sheets } from '../server.js';
+import axios from 'axios';
+import FormData from 'form-data';
 
 const normalizePhone = (phone) => {
   if (!phone) return "";
@@ -109,9 +111,70 @@ export const initTelegramBot = () => {
     }
   });
 
-  // 3. Handle incoming text messages
+  // Helper to handle files (images/PDFs) sent to the bot
+  const handleMedia = async (msg, fileId, fileName, mimeType) => {
+    const chatId = msg.chat.id;
+    const user = await getUserByChatId(chatId);
+    if (!user) return bot.sendMessage(chatId, "אנא אמת את חשבונך תחילה על ידי שליחת /start");
+
+    try {
+      bot.sendMessage(chatId, "⏳ מוריד את הקובץ ושולח לרואה החשבון המלאכותי שלך...");
+      
+      const fileLink = await bot.getFileLink(fileId);
+      const response = await axios.get(fileLink, { responseType: 'arraybuffer' });
+      const buffer = Buffer.from(response.data, 'binary');
+
+      const formData = new FormData();
+      formData.append('files', buffer, { filename: fileName, contentType: mimeType });
+      formData.append('userEmail', user.email);
+      // Let the analysis route know it came from the bot
+      formData.append('source', 'telegram');
+
+      const apiRes = await axios.post(`http://localhost:${process.env.PORT || 3000}/api/analyze`, formData, {
+        headers: { ...formData.getHeaders() }
+      });
+
+      if (apiRes.data.success) {
+        const results = apiRes.data.results || [];
+        let replyMsg = "✅ *פענוח הושלם בהצלחה!*\n\n";
+        results.forEach(res => {
+           const data = res.extractedData || {};
+           replyMsg += `📄 *${data.ExpenseName || 'הוצאה כללית'}*\n`;
+           replyMsg += `💰 סכום: ₪${data.TotalAmount || 0}\n`;
+           replyMsg += `📅 תאריך: ${data.Date || 'לא זוהה'}\n`;
+           replyMsg += `🏷️ קטגוריה: ${data.Category || 'אחר'}\n\n`;
+        });
+        replyMsg += "📊 הנתונים נשמרו בהצלחה בגוגל שיטס!";
+        bot.sendMessage(chatId, replyMsg, { parse_mode: 'Markdown' });
+      } else {
+        bot.sendMessage(chatId, "❌ ה-AI לא הצליח לפענח את הקבלה.");
+      }
+    } catch (err) {
+      console.error(err);
+      bot.sendMessage(chatId, "❌ אירעה שגיאה בעיבוד הקובץ. אנא נסה שוב.");
+    }
+  };
+
+  // 3. Handle incoming photos (Receipts)
+  bot.on('photo', (msg) => {
+    // Get the highest resolution photo
+    const photo = msg.photo[msg.photo.length - 1];
+    handleMedia(msg, photo.file_id, `photo_${Date.now()}.jpg`, 'image/jpeg');
+  });
+
+  // 4. Handle incoming documents (PDFs)
+  bot.on('document', (msg) => {
+    handleMedia(msg, msg.document.file_id, msg.document.file_name || `doc_${Date.now()}.pdf`, msg.document.mime_type);
+  });
+
+  // 5. Handle incoming voice notes
+  bot.on('voice', (msg) => {
+    handleMedia(msg, msg.voice.file_id, `voice_${Date.now()}.ogg`, msg.voice.mime_type || 'audio/ogg');
+  });
+
+  // 6. Handle incoming text messages
   bot.on('message', async (msg) => {
-    if (msg.contact || msg.text === '/start') return;
+    if (msg.contact || msg.photo || msg.document || msg.voice || msg.text === '/start') return;
 
     const chatId = msg.chat.id;
     const user = await getUserByChatId(chatId);
