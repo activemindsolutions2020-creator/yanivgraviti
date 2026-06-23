@@ -1,6 +1,8 @@
 import express from "express";
 import multer from "multer";
 import { Readable } from "stream";
+import dotenv from "dotenv";
+dotenv.config(); // Ensure env vars are loaded before Cloudinary configures itself
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { drive, sheets } from "../server.js";
 import { v2 as cloudinary } from "cloudinary";
@@ -120,7 +122,13 @@ If there is only one receipt, return an array with one object. If you cannot fin
     }
     
     // Clean markdown formatting if present
-    resultText = resultText.replace(/```json/g, "").replace(/```/g, "").trim();
+    resultText = resultText.replace(/```json/i, "").replace(/```/g, "").trim();
+
+    // Extract JSON from potential surrounding text
+    const jsonMatch = resultText.match(/\[[\s\S]*\]|\{[\s\S]*\}/);
+    if (jsonMatch) {
+      resultText = jsonMatch[0];
+    }
 
     let parsedResult;
     try {
@@ -130,7 +138,7 @@ If there is only one receipt, return an array with one object. If you cannot fin
         parsedResult = [parsedResult];
       }
     } catch (parseError) {
-      console.error("Failed to parse AI JSON:", resultText);
+      console.error("Failed to parse AI JSON. Raw text:", resultText);
       return res.status(500).json({ success: false, message: "Failed to parse AI response." });
     }
 
