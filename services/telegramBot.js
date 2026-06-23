@@ -171,26 +171,68 @@ export const initTelegramBot = () => {
     handleMedia(msg, msg.document.file_id, msg.document.file_name || `doc_${Date.now()}.pdf`, msg.document.mime_type);
   });
 
+  // Helper to handle Chat (Voice/Text)
+  const handleChat = async (msg) => {
+    const chatId = msg.chat.id;
+    const user = await getUserByChatId(chatId);
+    if (!user) return bot.sendMessage(chatId, "אנא אמת את חשבונך תחילה על ידי שליחת /start");
+
+    try {
+      bot.sendChatAction(chatId, 'typing');
+      
+      const formData = new FormData();
+      formData.append('userEmail', user.email);
+      formData.append('source', 'telegram');
+
+      if (msg.voice) {
+        bot.sendMessage(chatId, "⏳ מקשיב ומנתח את ההודעה הקולית שלך...");
+        const fileLink = await bot.getFileLink(msg.voice.file_id);
+        const response = await axios.get(fileLink, { responseType: 'stream' });
+        formData.append('voiceFile', response.data, { filename: `voice_${Date.now()}.ogg`, contentType: 'audio/ogg' });
+      } else if (msg.text) {
+        formData.append('textMessage', msg.text);
+      }
+
+      const apiRes = await axios.post(`http://localhost:${process.env.PORT || 3000}/api/chat`, formData, {
+        headers: { ...formData.getHeaders() }
+      });
+
+      if (apiRes.data.success) {
+        const { intent, replyText, expenseData } = apiRes.data;
+        if (intent === "expense") {
+          let replyMsg = `✅ **ההוצאה נרשמה בהצלחה!**\n\n`;
+          replyMsg += `📄 *${expenseData.vendor || 'לא זוהה'}*\n`;
+          replyMsg += `💰 סכום: ₪${expenseData.totalAmount || 0}\n`;
+          replyMsg += `🏷️ קטגוריה: ${expenseData.category || 'אחר'}\n\n`;
+          replyMsg += replyText ? `*${replyText}*` : "📊 הנתונים נשמרו בפאנל הניהול שלך.";
+          bot.sendMessage(chatId, replyMsg, { parse_mode: 'Markdown' });
+        } else {
+          // It's a chat response
+          bot.sendMessage(chatId, replyText, { parse_mode: 'Markdown' });
+        }
+      } else {
+         bot.sendMessage(chatId, "❌ מצטער, לא הצלחתי להבין את הבקשה.");
+      }
+    } catch (err) {
+      console.error(err);
+      let errMsg = "❌ אירעה שגיאה בעיבוד ההודעה.";
+      if (user.phone && normalizePhone(user.phone) === normalizePhone("972546799182")) {
+        const errorDetails = err.response && err.response.data ? JSON.stringify(err.response.data) : err.message;
+        errMsg += `\n\n[DEBUG ERROR INFO]\n${errorDetails}`;
+      }
+      bot.sendMessage(chatId, errMsg);
+    }
+  };
+
   // 5. Handle incoming voice notes
   bot.on('voice', (msg) => {
-    handleMedia(msg, msg.voice.file_id, `voice_${Date.now()}.ogg`, msg.voice.mime_type || 'audio/ogg');
+    handleChat(msg);
   });
 
   // 6. Handle incoming text messages
   bot.on('message', async (msg) => {
     if (msg.contact || msg.photo || msg.document || msg.voice || msg.text === '/start') return;
-
-    const chatId = msg.chat.id;
-    const user = await getUserByChatId(chatId);
-
-    if (!user) {
-      bot.sendMessage(chatId, "אנא אמת את חשבונך תחילה על ידי שליחת /start");
-      return;
-    }
-
-    if (msg.text) {
-      bot.sendMessage(chatId, `קיבלתי את ההודעה שלך! כרגע המנוע הקולי/טקסטואלי בהקמה. אמרת: ${msg.text}`);
-    }
+    handleChat(msg);
   });
 
   return bot;
