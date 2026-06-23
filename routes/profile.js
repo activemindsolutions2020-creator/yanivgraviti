@@ -18,13 +18,13 @@ if (!fs.existsSync(DATA_FILE)) {
 // POST /api/profile - Handles profile data submission
 router.post('/', (req, res) => {
   try {
-    const { userEmail, idNumber, caseNumber, phoneNumber, govToken, geminiApiKey, reminderDay, reminderMessage, monthlyBudget } = req.body;
+    const { userEmail, idNumber, caseNumber, phoneNumber, govToken, geminiApiKey, reminderDay, reminderMessage, monthlyBudget, isInsolvency } = req.body;
 
-    // Validate that userEmail, idNumber, and geminiApiKey are provided
-    if (!userEmail || !idNumber || !geminiApiKey) {
+    // Validate that userEmail is provided
+    if (!userEmail) {
       return res.status(400).json({ 
         success: false, 
-        message: 'userEmail, idNumber, and geminiApiKey are required fields.' 
+        message: 'userEmail is a required field.' 
       });
     }
 
@@ -33,7 +33,7 @@ router.post('/', (req, res) => {
     
     // Find if user exists
     const userIndex = users.findIndex(u => u.userEmail === userEmail);
-    const newUserData = { userEmail, idNumber, caseNumber, phoneNumber, govToken, geminiApiKey, reminderDay, reminderMessage, monthlyBudget };
+    const newUserData = { userEmail, idNumber, caseNumber, phoneNumber, govToken, geminiApiKey, reminderDay, reminderMessage, monthlyBudget, isInsolvency: isInsolvency === true };
 
     if (userIndex > -1) {
       users[userIndex] = { ...users[userIndex], ...newUserData };

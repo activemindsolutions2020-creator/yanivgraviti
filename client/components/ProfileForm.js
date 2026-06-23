@@ -13,6 +13,7 @@ export default function ProfileForm({ userEmail }) {
     reminderDay: "25",
     reminderMessage: "",
     monthlyBudget: "",
+    isInsolvency: false,
   });
   const [status, setStatus] = useState(null);
 
@@ -66,6 +67,21 @@ export default function ProfileForm({ userEmail }) {
           className="w-full p-3.5 rounded-lg border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700"
           dir="rtl"
         />
+
+        <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input 
+              type="checkbox" 
+              name="isInsolvency"
+              checked={formData.isInsolvency}
+              onChange={(e) => setFormData({ ...formData, isInsolvency: e.target.checked })}
+              className="sr-only peer" 
+            />
+            <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+          <span className="text-sm font-medium text-slate-700">האם הלקוח מוגדר תחת הליך חדלות פירעון? (משנה את לוגיקת הייעוץ הפיננסי)</span>
+        </div>
+
         <input
           type="text"
           name="idNumber"

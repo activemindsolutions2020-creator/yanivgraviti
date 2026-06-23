@@ -5,6 +5,8 @@ dotenv.config();
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { sheets } from "../server.js";
 import JSON5 from "json5";
+import fs from "fs";
+import path from "path";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -59,16 +61,46 @@ router.post("/", upload.single("voiceFile"), async (req, res) => {
     // Fetch user context
     const userHistory = await getUserInvoices(userEmail);
 
-    const systemPrompt = `You are "Smart Insolvency Assistant" (רואה חשבון וירטואלי חכם).
-You are assisting a user in Israel who is going through personal bankruptcy (חדלות פירעון).
-You must answer in Hebrew, be empathetic, professional, and helpful.
-THE CURRENT DATE IS: ${new Date().toLocaleDateString('en-GB')} (DD/MM/YYYY). All implicit dates should be relative to this date.
+    // Fetch user profile to check insolvency status
+    let isInsolvency = false; // default
+    try {
+      const DATA_FILE = path.join(process.cwd(), 'data', 'users.json');
+      if (fs.existsSync(DATA_FILE)) {
+        const users = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        const userProf = users.find(u => u.userEmail === userEmail);
+        if (userProf && userProf.isInsolvency !== undefined) {
+          isInsolvency = userProf.isInsolvency === true;
+        }
+      }
+    } catch (e) {
+      console.error("Error reading profile for insolvency check:", e);
+    }
 
-GENERAL INSOLVENCY RULES IN ISRAEL:
+    const systemPromptInsolvency = `You are "Smart Insolvency Assistant" (רואה חשבון וירטואלי חכם).
+You are assisting a user in Israel who is going through personal bankruptcy (חדלות פירעון).
+You must answer in Hebrew, be empathetic, professional, and helpful.`;
+
+    const systemPromptFinance = `You are "Smart Finance Assistant" (יועץ פיננסי חכם).
+You are assisting a user in Israel with managing their personal finances, tracking expenses, and budgeting.
+You must answer in Hebrew, be empathetic, professional, and helpful. Do NOT mention bankruptcy or insolvency rules.`;
+
+    const insolvencyRules = `GENERAL INSOLVENCY RULES IN ISRAEL:
 - Permitted expenses (מה מותר): basic food, rent, utilities, basic clothing, necessary medical expenses, public transport.
 - Forbidden/restricted expenses (מה אסור/בעייתי): luxury items, vacations abroad, gambling, high-end restaurants, new expensive cars, new large debts/loans.
 - The user has a monthly payment they must make to the trustee (קופת הנשייה).
-- Provide helpful links if relevant: https://www.gov.il/he/departments/topics/insolvency (אתר משרד המשפטים - הממונה על הליכי חדלות פירעון).
+- Provide helpful links if relevant: https://www.gov.il/he/departments/topics/insolvency (אתר משרד המשפטים - הממונה על הליכי חדלות פירעון).`;
+
+    const financeRules = `GENERAL FINANCE RULES:
+- Guide the user towards saving money and sticking to their budget.
+- Provide general financial tips, tracking patterns, and identifying wasteful expenses.`;
+
+    const rulesSection = isInsolvency ? insolvencyRules : financeRules;
+    const basePrompt = isInsolvency ? systemPromptInsolvency : systemPromptFinance;
+
+    const fullSystemPrompt = `${basePrompt}
+THE CURRENT DATE IS: ${new Date().toLocaleDateString('en-GB')} (DD/MM/YYYY). All implicit dates should be relative to this date.
+
+${rulesSection}
 
 USER FINANCIAL HISTORY (JSON):
 ${JSON.stringify(userHistory, null, 2)}

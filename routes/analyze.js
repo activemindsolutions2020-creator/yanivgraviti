@@ -9,6 +9,8 @@ import { v2 as cloudinary } from "cloudinary";
 cloudinary.config(true); // Force Cloudinary to read the newly loaded process.env
 import JSON5 from "json5";
 import { PDFDocument } from "pdf-lib";
+import fs from "fs";
+import path from "path";
 
 const router = express.Router();
 
@@ -45,7 +47,22 @@ router.post("/", upload.single("invoiceFile"), async (req, res) => {
     
     console.log(`Analyzing file: ${file.originalname} (${file.mimetype}) for user: ${userEmail}`);
 
-    const prompt = `Analyze this insolvency document (invoice/receipt). The document might be in Hebrew or English and may contain MULTIPLE receipts or invoices.
+    let isInsolvency = false; // default
+    try {
+      const DATA_FILE = path.join(process.cwd(), 'data', 'users.json');
+      if (fs.existsSync(DATA_FILE)) {
+        const users = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        const userProf = users.find(u => u.userEmail === userEmail);
+        if (userProf && userProf.isInsolvency !== undefined) {
+          isInsolvency = userProf.isInsolvency === true;
+        }
+      }
+    } catch (e) {
+      console.error("Error reading profile for insolvency check:", e);
+    }
+
+    const docType = isInsolvency ? "insolvency document" : "financial document";
+    const prompt = `Analyze this ${docType} (invoice/receipt). The document might be in Hebrew or English and may contain MULTIPLE receipts or invoices.
 Extract the details for EACH distinct receipt found and return ONLY a valid JSON ARRAY of objects. Each object must have these EXACT keys:
 - "type": (e.g. "Invoice", "Receipt", "חשבונית מס", "קבלה")
 - "vendor": (Name of the business/person who issued it, in Hebrew if possible)
