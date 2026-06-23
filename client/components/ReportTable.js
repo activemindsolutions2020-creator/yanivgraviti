@@ -598,6 +598,16 @@ export default function ReportTable({ userEmail }) {
                         </td>
                         <td className="py-4 px-4">
                           <div className="flex gap-2 justify-end">
+                            {inv.driveFileId && inv.driveFileId !== 'N/A' && inv.driveFileId !== 'Unknown' && (
+                              <>
+                                <a href={inv.driveFileId} target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 transition-all" title="צפה בקובץ">
+                                  👁️
+                                </a>
+                                <a href={inv.driveFileId} download className="p-2 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 transition-all" title="הורד קובץ">
+                                  ⬇️
+                                </a>
+                              </>
+                            )}
                             <button onClick={() => { setEditInvoice(inv); setIsModalOpen(true); }} className="p-2 bg-slate-50 border border-slate-200 text-blue-600 rounded-lg hover:bg-blue-50 transition-all" title="ערוך">
                               ✏️
                             </button>

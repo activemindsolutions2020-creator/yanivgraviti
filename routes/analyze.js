@@ -7,6 +7,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { drive, sheets } from "../server.js";
 import { v2 as cloudinary } from "cloudinary";
 import JSON5 from "json5";
+import { PDFDocument } from "pdf-lib";
 
 const router = express.Router();
 
@@ -53,6 +54,7 @@ Extract the details for EACH distinct receipt found and return ONLY a valid JSON
 - "totalAmount": (Numeric value only, e.g. 150.50. If not found, use 0)
 - "currency": (e.g. "ILS", "USD", "EUR")
 - "date": (Format as DD/MM/YYYY if possible, or extract as written)
+- "pageNumber": (The page number in the PDF where this specific receipt is located. 1-indexed. e.g., 1, 2, 3... If it's an image, just return 1)
 
 If there is only one receipt, return an array with one object. If you cannot find a specific field, do your best to infer it from the context or leave it as "Unknown". Do not return an empty array. ONLY return the raw JSON array without markdown formatting.`;
     let mimeType = file.mimetype;
@@ -153,12 +155,9 @@ If there is only one receipt, return an array with one object. If you cannot fin
     // =========================================================================
     // Save to Cloudinary & Google Sheets
     // =========================================================================
-    let fileUrl = "N/A";
-
-    try {
-      // 1. Upload to Cloudinary
-      console.log(`Uploading ${file.originalname} to Cloudinary...`);
-      fileUrl = await new Promise((resolve, reject) => {
+    
+    const uploadBufferToCloudinary = (buffer) => {
+      return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           { resource_type: "auto", folder: "yaniv_invoices" },
           (error, result) => {
@@ -166,12 +165,54 @@ If there is only one receipt, return an array with one object. If you cannot fin
             resolve(result.secure_url);
           }
         );
-        stream.end(file.buffer);
+        stream.end(buffer);
       });
-      console.log(`File uploaded to Cloudinary successfully. URL: ${fileUrl}`);
+    };
+
+    let defaultFileUrl = "N/A";
+    let isPdf = file.originalname.toLowerCase().endsWith(".pdf");
+    let pdfDoc = null;
+
+    try {
+      // 1. Upload the full original file as a fallback/default
+      console.log(`Uploading full ${file.originalname} to Cloudinary...`);
+      defaultFileUrl = await uploadBufferToCloudinary(file.buffer);
+      console.log(`Full file uploaded successfully. URL: ${defaultFileUrl}`);
     } catch (uploadError) {
-      console.error("Failed to upload to Cloudinary:", uploadError.message);
-      // We continue even if upload fails, to at least save the row to sheets
+      console.error("Failed to upload full file to Cloudinary:", uploadError.message);
+    }
+
+    if (isPdf) {
+       try {
+         pdfDoc = await PDFDocument.load(file.buffer);
+       } catch (e) {
+         console.error("Failed to load PDF with pdf-lib:", e);
+       }
+    }
+
+    // 2. Assign specific fileUrls for each item if it's a PDF and has a pageNumber
+    for (const item of parsedResult) {
+      item.fileUrl = defaultFileUrl; // fallback
+      
+      if (pdfDoc && item.pageNumber) {
+        const pageIndex = parseInt(item.pageNumber, 10) - 1;
+        if (!isNaN(pageIndex) && pageIndex >= 0 && pageIndex < pdfDoc.getPageCount()) {
+          try {
+            console.log(`Splitting PDF page ${item.pageNumber} for vendor ${item.vendor}...`);
+            const newPdf = await PDFDocument.create();
+            const [copiedPage] = await newPdf.copyPages(pdfDoc, [pageIndex]);
+            newPdf.addPage(copiedPage);
+            const pdfBytes = await newPdf.save();
+            const buffer = Buffer.from(pdfBytes);
+            
+            const splitUrl = await uploadBufferToCloudinary(buffer);
+            item.fileUrl = splitUrl;
+            console.log(`Successfully split and uploaded page ${item.pageNumber}. URL: ${splitUrl}`);
+          } catch(err) {
+             console.error(`Failed to split PDF page ${item.pageNumber}:`, err.message);
+          }
+        }
+      }
     }
 
     try {
@@ -186,7 +227,7 @@ If there is only one receipt, return an array with one object. If you cannot fin
         item.totalAmount || 0,
         item.currency || "ILS",
         item.type || "",
-        fileUrl || "N/A",
+        item.fileUrl || defaultFileUrl || "N/A",
         "Pending"
       ]);
 
