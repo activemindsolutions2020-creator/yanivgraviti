@@ -21,10 +21,11 @@ const upload = multer({
 
 // Fallback sequence of models to try
 const MODELS_TO_TRY = [
-  "gemini-2.5-flash", 
+  "gemini-1.5-flash", 
   "gemini-2.0-flash", 
+  "gemini-2.5-flash", 
   "gemini-2.5-flash-lite", 
-  "gemini-2.5-pro"
+  "gemini-1.5-pro"
 ];
 
 let currentKeyIndex = 0;
@@ -107,11 +108,12 @@ If there is only one receipt, return an array with one object. If you cannot fin
           console.warn(`Model ${modelName} failed with key ...${activeKey.slice(-4)}. Error: ${error.message}`);
           if (!firstError) firstError = error; // Store the first real error
           
-          // If 429 or 503, try the NEXT KEY for this same model.
-          // If all keys fail, the outer loop will naturally move to the NEXT MODEL.
+          // If 429 or 503, try the NEXT MODEL instantly! 
+          // All keys share the same Google Project, so if one key hits a rate limit for this model, ALL keys will hit it.
+          // By breaking the KEY loop, the outer loop will naturally move to the NEXT MODEL (e.g. from 2.5-flash to 1.5-flash).
           if (error.message && (error.message.includes("429") || error.message.includes("Too Many Requests") || error.message.includes("503"))) {
-             console.log(`Rate limit or 503 hit on key! Moving to next key...`);
-             continue; // Go to next key
+             console.log(`Project rate limit hit on model ${modelName}! Instantly jumping to fallback model...`);
+             break; // Break the KEY loop!
           }
           
           // If 400, key is invalid or payload is bad
