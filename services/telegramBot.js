@@ -144,7 +144,7 @@ export const initTelegramBot = () => {
            replyMsg += `📅 תאריך: ${data.Date || 'לא זוהה'}\n`;
            replyMsg += `🏷️ קטגוריה: ${data.Category || 'אחר'}\n\n`;
         });
-        replyMsg += "📊 הנתונים נשמרו בהצלחה בגוגל שיטס!";
+        replyMsg += "📊 הנתונים נשמרו בהצלחה במערכת!";
         bot.sendMessage(chatId, replyMsg, { parse_mode: 'Markdown' });
       } else {
         bot.sendMessage(chatId, "❌ ה-AI לא הצליח לפענח את הקבלה.");
