@@ -23,6 +23,7 @@
     "node-cron": "^3.0.3",
     "node-telegram-bot-api": "^1.1.1",
     "pdf-lib": "^1.17.1",
-    "pdfkit": "^0.15.0"
+    "pdfkit": "^0.15.0",
+    "puppeteer": "^25.2.0"
   }
 }

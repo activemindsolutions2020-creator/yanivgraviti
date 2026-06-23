@@ -10,7 +10,7 @@ if (!fs.existsSync('exports/')) {
   fs.mkdirSync('exports/');
 }
 
-export const generateUserReport = async (userEmail) => {
+export const generateUserReport = async (userEmail, targetMonthYear = null) => {
   try {
     const spreadsheetId = process.env.SPREADSHEET_ID;
     const range = 'Invoices!A:I'; 
@@ -26,18 +26,34 @@ export const generateUserReport = async (userEmail) => {
     rows.forEach((row, index) => {
       const sheetRow = index + 1; 
       const rowEmail = row[0];
+      const dateStr = row[1] || '';
       const status = row[8];
 
-      if (rowEmail === userEmail && status === 'Pending') {
-        pendingInvoices.push({
-          sheetRow,
-          date: row[1],
-          vendor: row[2],
-          amount: parseFloat(row[4]) || 0,
-          currency: row[5] || 'ILS',
-          type: row[6],
-          fileUrl: row[7]
-        });
+      if (rowEmail === userEmail) {
+        if (targetMonthYear) {
+           // Target format is MM/YYYY. Date format is DD/MM/YYYY
+           if (dateStr.includes(targetMonthYear)) {
+               pendingInvoices.push({
+                 sheetRow,
+                 date: dateStr,
+                 vendor: row[2],
+                 amount: parseFloat(row[4]) || 0,
+                 currency: row[5] || 'ILS',
+                 type: row[6],
+                 fileUrl: row[7]
+               });
+           }
+        } else if (status === 'Pending') {
+           pendingInvoices.push({
+             sheetRow,
+             date: dateStr,
+             vendor: row[2],
+             amount: parseFloat(row[4]) || 0,
+             currency: row[5] || 'ILS',
+             type: row[6],
+             fileUrl: row[7]
+           });
+        }
       }
     });
 
@@ -188,15 +204,20 @@ export const generateUserReport = async (userEmail) => {
     });
     await browser.close();
 
-    const dataToUpdate = pendingInvoices.map(invoice => ({
-      range: `Invoices!I${invoice.sheetRow}`,
-      values: [['Reported']]
-    }));
+    // Only mark as reported if we are generating a pending report, NOT a historical one
+    if (!targetMonthYear) {
+       const dataToUpdate = pendingInvoices.map(invoice => ({
+         range: `Invoices!I${invoice.sheetRow}`,
+         values: [['Reported']]
+       }));
 
-    await sheets.spreadsheets.values.batchUpdate({
-      spreadsheetId,
-      requestBody: { valueInputOption: 'USER_ENTERED', data: dataToUpdate }
-    });
+       if (dataToUpdate.length > 0) {
+           await sheets.spreadsheets.values.batchUpdate({
+             spreadsheetId,
+             requestBody: { valueInputOption: 'USER_ENTERED', data: dataToUpdate }
+           });
+       }
+    }
 
     return { success: true, message: 'Report generated successfully', filePath };
 

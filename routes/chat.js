@@ -102,9 +102,11 @@ Return JSON EXACTLY in this format:
 }
 
 If INTENT is "generate_report":
+If the user specifies a specific month (e.g. "May", "last month"), extract it into MM/YYYY format (e.g. "05/2026"). Otherwise, leave it null.
 Return JSON EXACTLY in this format:
 {
   "intent": "generate_report",
+  "monthYear": "05/2026",
   "replyText": "מייצר את הדו\"ח המבוקש ושולח אליך מיד..."
 }
 
@@ -196,13 +198,15 @@ CRITICAL: Return ONLY valid JSON. Do not include markdown \`\`\`json blocks arou
     if (parsedResult.intent === "expense" && parsedResult.expenseData) {
        const item = parsedResult.expenseData;
        const rowToAppend = [
-          item.type || "Invoice",
-          item.date || new Date().toLocaleDateString('he-IL'),
-          item.vendor || "Unknown",
-          item.category || "אחר",
-          item.totalAmount || 0,
-          userEmail,
-          "N/A" // No physical file URL for voice/text expenses
+          userEmail,                                // Index 0 (A): Email
+          item.date || new Date().toLocaleDateString('he-IL'), // Index 1 (B): Date
+          item.vendor || "Unknown",                 // Index 2 (C): Vendor
+          item.category || "אחר",                   // Index 3 (D): Category
+          item.totalAmount || 0,                    // Index 4 (E): Amount
+          item.currency || "ILS",                   // Index 5 (F): Currency
+          item.type || "Invoice",                   // Index 6 (G): Type
+          "N/A",                                    // Index 7 (H): File URL
+          "Pending"                                 // Index 8 (I): Status
        ];
 
        try {
@@ -222,7 +226,8 @@ CRITICAL: Return ONLY valid JSON. Do not include markdown \`\`\`json blocks arou
       success: true,
       intent: parsedResult.intent,
       replyText: parsedResult.replyText,
-      expenseData: parsedResult.expenseData
+      expenseData: parsedResult.expenseData,
+      monthYear: parsedResult.monthYear
     });
 
   } catch (error) {

@@ -198,7 +198,7 @@ export const initTelegramBot = () => {
       });
 
       if (apiRes.data.success) {
-        const { intent, replyText, expenseData } = apiRes.data;
+        const { intent, replyText, expenseData, monthYear } = apiRes.data;
         if (intent === "expense") {
           let replyMsg = `✅ ההוצאה נרשמה בהצלחה!\n\n`;
           replyMsg += `📄 בית עסק: ${expenseData.vendor || 'לא זוהה'}\n`;
@@ -210,7 +210,7 @@ export const initTelegramBot = () => {
           bot.sendMessage(chatId, replyText || "⏳ מייצר את הדו\"ח המבוקש, אנא המתן...");
           try {
             const { generateUserReport } = await import('../routes/report.js');
-            const result = await generateUserReport(user.email);
+            const result = await generateUserReport(user.email, monthYear);
             if (result.success && result.filePath) {
                await bot.sendDocument(chatId, result.filePath);
                bot.sendMessage(chatId, "✅ הדו\"ח נשלח בהצלחה!");
