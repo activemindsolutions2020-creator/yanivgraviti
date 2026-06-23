@@ -80,21 +80,15 @@ If there is only one receipt, return an array with one object. If you cannot fin
 
     let resultText = null;
     let firstError = null;
+    let success = false;
 
-    // Loop through the models and try to generate content
-    for (const modelName of MODELS_TO_TRY) {
-      let retries = 2; // Allow 2 retries per model for 503 errors
-      let success = false;
-
-      while (retries >= 0 && !success) {
+    // Loop through keys first, so if one is rate-limited we try the next
+    for (const activeKey of keys) {
+      const genAI = new GoogleGenerativeAI(activeKey);
+      
+      for (const modelName of MODELS_TO_TRY) {
         try {
-          // Select key round-robin
-          const activeKey = keys[currentKeyIndex % keys.length];
-          currentKeyIndex++;
-          
-          const genAI = new GoogleGenerativeAI(activeKey);
-          
-          console.log(`Attempting to analyze using model: ${modelName} with API Key ending in ...${activeKey.slice(-4)} (Retries left: ${retries})`);
+          console.log(`Attempting to analyze using model: ${modelName} with API Key ending in ...${activeKey.slice(-4)}`);
           const model = genAI.getGenerativeModel({ 
             model: modelName,
             generationConfig: { responseMimeType: "application/json" }
@@ -106,45 +100,27 @@ If there is only one receipt, return an array with one object. If you cannot fin
           
           console.log(`Successfully analyzed using model: ${modelName}`);
           success = true;
-          break; // Break the retry loop
+          break; // Break the model loop
         } catch (error) {
-          console.warn(`Model ${modelName} failed. Error: ${error.message}`);
+          console.warn(`Model ${modelName} failed with key ...${activeKey.slice(-4)}. Error: ${error.message}`);
           if (!firstError) firstError = error; // Store the first real error
           
-          // If it's a 503 (high demand) or 429 (rate limit), wait and retry
-          if (error.message && (error.message.includes("503") || error.message.includes("429") || error.message.includes("Too Many Requests"))) {
-            retries--;
-            if (retries >= 0) {
-              // If we have multiple keys, retry immediately with the next key!
-              if (keys.length > 1) {
-                 console.log(`Rate limit hit! Instantly rotating to the next API key instead of waiting...`);
-                 continue; // Instantly loops and picks the next key
-              }
-              
-              let waitTime = 3000; // Default 3 seconds
-              
-              // Extract retry time if present
-              const retryMatch = error.message.match(/retry in ([\d\.]+)s/i);
-              if (retryMatch && retryMatch[1]) {
-                const requestedDelay = parseFloat(retryMatch[1]) * 1000;
-                waitTime = Math.min(requestedDelay + 500, 5000); // Wait max 5 seconds
-              }
-
-              console.log(`Rate limit hit. Only 1 key available. Waiting ${waitTime/1000} seconds before retrying model ${modelName}...`);
-              await new Promise(resolve => setTimeout(resolve, waitTime));
-              continue;
-            }
+          // If it's a 429 (rate limit), this entire KEY is exhausted. Break model loop and go to NEXT KEY.
+          if (error.message && (error.message.includes("429") || error.message.includes("Too Many Requests"))) {
+             console.log(`Rate limit hit! Skipping remaining models for this key and rotating to next key...`);
+             break; // Break model loop, continue key loop
           }
           
-          // If it's a 400 error (like unsupported mime type or invalid key), don't retry other models.
+          // If it's a 400 error (invalid key/mimetype), the key is bad or file is bad.
           if (error.message && (error.message.includes("400") || error.message.includes("API key not valid"))) {
-            retries = -1; // Force break
+             break; // Break model loop, continue key loop
           }
-          break; // Break the retry loop and move to the next model
+          
+          // If 503 (server overloaded), we just naturally let it loop to the next fallback model.
         }
       }
       
-      if (success) break; // Break the outer model loop if successful
+      if (success) break; // Break the key loop if we succeeded!
     }
 
     if (!resultText) {
