@@ -3,7 +3,7 @@ services:
     name: smart-insolvency-ai-backend
     env: docker
     plan: free # Can be upgraded to 'starter' if more RAM/CPU is needed for Puppeteer
-    region: frankfurt
+    region: oregon
     dockerfilePath: ./Dockerfile
     healthCheckPath: /
     envVars:
