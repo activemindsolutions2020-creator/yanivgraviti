@@ -211,8 +211,6 @@ IMPORTANT: Never use unescaped double quotes (") inside the JSON string values. 
         } catch (err) {
           firstError = err;
           if (err.message && (err.message.includes("404") || err.message.includes("not found"))) break;
-          if (err.message && (err.message.includes("429") || err.message.includes("Too Many Requests") || err.message.includes("503"))) break;
-          if (err.message && (err.message.includes("400") || err.message.includes("API key not valid"))) continue;
         }
       }
       if (success) break; // Break the MODEL loop

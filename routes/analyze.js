@@ -191,18 +191,6 @@ If there is only one receipt, return an array with one object. If you cannot fin
              console.log(`Model ${modelName} does not exist. Instantly jumping to fallback model...`);
              break; // Break the KEY loop!
           }
-
-          // If 429 or 503, try the NEXT MODEL instantly! 
-          // All keys share the same Google Project, so if one key hits a rate limit for this model, ALL keys will hit it.
-          if (error.message && (error.message.includes("429") || error.message.includes("Too Many Requests") || error.message.includes("503"))) {
-             console.log(`Project rate limit hit on model ${modelName}! Instantly jumping to fallback model...`);
-             break; // Break the KEY loop!
-          }
-          
-          // If 400, key is invalid or payload is bad
-          if (error.message && (error.message.includes("400") || error.message.includes("API key not valid"))) {
-             continue; // Go to next key
-          }
         }
       }
       
