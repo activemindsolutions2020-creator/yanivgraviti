@@ -37,6 +37,7 @@ export const generateUserReport = async (userEmail, targetMonthYear = null) => {
                  sheetRow,
                  date: dateStr,
                  vendor: row[2],
+                 category: row[3] || 'אחר',
                  amount: parseFloat(row[4]) || 0,
                  currency: row[5] || 'ILS',
                  type: row[6],
@@ -48,6 +49,7 @@ export const generateUserReport = async (userEmail, targetMonthYear = null) => {
              sheetRow,
              date: dateStr,
              vendor: row[2],
+             category: row[3] || 'אחר',
              amount: parseFloat(row[4]) || 0,
              currency: row[5] || 'ILS',
              type: row[6],
@@ -71,6 +73,7 @@ export const generateUserReport = async (userEmail, targetMonthYear = null) => {
     };
 
     let tableRowsHtml = '';
+    const categoryTotals = {};
 
     for (const inv of pendingInvoices) {
       const curr = inv.currency.toUpperCase();
@@ -80,12 +83,17 @@ export const generateUserReport = async (userEmail, targetMonthYear = null) => {
         totals[curr].income += inv.amount;
       } else {
         totals[curr].expense += inv.amount;
+        if (curr === 'ILS') {
+          if (!categoryTotals[inv.category]) categoryTotals[inv.category] = 0;
+          categoryTotals[inv.category] += inv.amount;
+        }
       }
 
       tableRowsHtml += `
         <tr>
           <td>${inv.date}</td>
           <td>${inv.vendor}</td>
+          <td>${inv.category}</td>
           <td style="color: ${(inv.type && inv.type.includes('הכנסה')) ? '#16a34a' : '#dc2626'}">${inv.amount.toFixed(2)} ${inv.currency}</td>
           <td>${inv.type}</td>
         </tr>
@@ -105,6 +113,26 @@ export const generateUserReport = async (userEmail, targetMonthYear = null) => {
         `;
       }
     });
+
+    let categoryHtml = '';
+    const categories = Object.keys(categoryTotals).sort((a, b) => categoryTotals[b] - categoryTotals[a]);
+    if (categories.length > 0) {
+      let catRows = '';
+      categories.forEach(cat => {
+         catRows += `
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e2e8f0; padding: 8px 0; font-size: 16px;">
+               <span>${cat}</span>
+               <span style="font-weight: bold;">₪${categoryTotals[cat].toFixed(2)}</span>
+            </div>
+         `;
+      });
+      categoryHtml = `
+        <div style="margin-bottom: 40px; background: #fff; padding: 25px; border-radius: 12px; border: 1px solid #cbd5e1; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+           <h3 style="margin-top: 0; color: #1e40af; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">פילוח הוצאות לפי קטגוריות (₪)</h3>
+           ${catRows}
+        </div>
+      `;
+    }
 
     let imagesHtml = '';
     for (const invoice of pendingInvoices) {
@@ -166,11 +194,14 @@ export const generateUserReport = async (userEmail, targetMonthYear = null) => {
         ${summaryHtml}
       </div>
 
+      ${categoryHtml}
+
       <table>
         <thead>
           <tr>
             <th>תאריך</th>
             <th>בית עסק / תיאור</th>
+            <th>קטגוריה</th>
             <th>סכום</th>
             <th>סוג פעולה</th>
           </tr>
