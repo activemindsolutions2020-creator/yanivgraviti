@@ -43,7 +43,7 @@ router.post("/", upload.single("invoiceFile"), async (req, res) => {
       });
     }
 
-    const keys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
+    const keys = rawKeys.split(',').map(k => k.trim().replace(/^"|"$/g, '')).filter(Boolean);
     
     console.log(`Analyzing file: ${file.originalname} (${file.mimetype}) for user: ${userEmail}`);
 
@@ -127,32 +127,36 @@ If there is only one receipt, return an array with one object. If you cannot fin
 
     // Dynamically fetch available models to prevent 404 errors!
     let MODELS_TO_TRY = [];
-    try {
-      // Use the first API key to query Google for exactly which models are currently online and available
-      const fetchReq = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${keys[0]}`);
-      const data = await fetchReq.json();
-      
-      if (data.models) {
-         MODELS_TO_TRY = data.models
-            .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent") && m.name.includes("gemini"))
-            .map(m => m.name.replace("models/", ""));
-            
-         // Sort to prioritize fast 'flash' models over 'pro', and newer versions over older ones
-         MODELS_TO_TRY.sort((a, b) => {
-            if (a.includes("flash") && !b.includes("flash")) return -1;
-            if (!a.includes("flash") && b.includes("flash")) return 1;
-            // Reverse alphabetical roughly sorts newer versions (2.5) before older (1.5)
-            return b.localeCompare(a);
-         });
-         
-         // Keep only the top 4 models so we don't wait forever if rate-limited globally
-         MODELS_TO_TRY = MODELS_TO_TRY.slice(0, 4);
-      } else {
-         throw new Error("No models array in response");
+    for (const key of keys) {
+      try {
+        // Use the API key to query Google for exactly which models are currently online and available
+        const fetchReq = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+        const data = await fetchReq.json();
+        
+        if (data.models) {
+          MODELS_TO_TRY = data.models
+             .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent") && m.name.includes("gemini"))
+             .map(m => m.name.replace("models/", ""));
+             
+          // Sort to prioritize fast 'flash' models over 'pro', and newer versions over older ones
+          MODELS_TO_TRY.sort((a, b) => {
+             if (a.includes("flash") && !b.includes("flash")) return -1;
+             if (!a.includes("flash") && b.includes("flash")) return 1;
+             // Reverse alphabetical roughly sorts newer versions (2.5) before older (1.5)
+             return b.localeCompare(a);
+          });
+          
+          // Keep only the top 4 models so we don't wait forever if rate-limited globally
+          MODELS_TO_TRY = MODELS_TO_TRY.slice(0, 4);
+          break; // Stop once we successfully fetch the models list
+        }
+      } catch (e) {
+        console.warn(`Failed to dynamically fetch models list with key starting in ${key.substring(0, 8)}. Error:`, e.message);
       }
-    } catch (e) {
-      console.warn("Failed to dynamically fetch models list, using hardcoded fallback. Error:", e.message);
-      MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
+    }
+    if (MODELS_TO_TRY.length === 0) {
+      console.warn("Failed to dynamically fetch models list with all keys, using hardcoded fallback.");
+      MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-3.1-flash-lite", "gemini-3-flash-preview"];
     }
     
     console.log(`Dynamically selected models to try in order: ${MODELS_TO_TRY.join(", ")}`);
