@@ -15,6 +15,7 @@ const normalizePhone = (phone) => {
 };
 
 export let bot;
+const adminStates = {}; // Add admin state tracking
 
 export const initTelegramBot = () => {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -218,17 +219,7 @@ export const initTelegramBot = () => {
     }
   };
 
-  // 3. Handle incoming photos (Receipts)
-  bot.on('photo', (msg) => {
-    // Get the highest resolution photo
-    const photo = msg.photo[msg.photo.length - 1];
-    handleMedia(msg, photo.file_id, `photo_${Date.now()}.jpg`, 'image/jpeg');
-  });
 
-  // 4. Handle incoming documents (PDFs)
-  bot.on('document', (msg) => {
-    handleMedia(msg, msg.document.file_id, msg.document.file_name || `doc_${Date.now()}.pdf`, msg.document.mime_type);
-  });
 
   // Helper to handle Chat (Voice/Text)
   const handleChat = async (msg) => {
@@ -338,15 +329,141 @@ export const initTelegramBot = () => {
     }
   };
 
-  // 5. Handle incoming voice notes
-  bot.on('voice', (msg) => {
-    handleChat(msg);
-  });
+  // Helper for admin user creation
+  const handleUserCreation = async (chatId, text) => {
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length < 3) {
+      return bot.sendMessage(chatId, "חסרים פרטים. אנא שלח: שם מלא, מייל, טלפון.");
+    }
+    const name = lines.length === 3 ? lines[0] : (lines[0] === 'הקמה' ? lines[1] : lines[0]);
+    const email = lines.length === 3 ? lines[1] : (lines[0] === 'הקמה' ? lines[2] : lines[1]);
+    const phone = lines.length === 3 ? lines[2] : (lines[0] === 'הקמה' ? lines[3] : lines[2]);
+    const isManager = text.includes('מנהל משרד');
+    
+    try {
+      const createdAt = new Date().toISOString();
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: process.env.SPREADSHEET_ID,
+        range: 'Users!A:K',
+        valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values: [[email, name, isManager ? 'Manager' : 'User', 'Approved', createdAt, '', 'Admin', phone, '', '25', '']]
+        }
+      });
+      delete adminStates[chatId];
+      bot.sendMessage(chatId, `✅ המשתמש ${name} הוקם בהצלחה כ${isManager ? 'מנהל משרד' : 'משתמש רגיל'}!`);
+    } catch(e) {
+      bot.sendMessage(chatId, "❌ שגיאה בהקמת המשתמש: " + e.message);
+    }
+  };
 
-  // 6. Handle incoming text messages
+  // Helper for admin broadcast
+  const executeBroadcast = async (adminChatId, messageIdToCopy, fromChatId) => {
+    bot.sendMessage(adminChatId, "⏳ מתחיל בשליחת תפוצה...");
+    try {
+      const getResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId: process.env.SPREADSHEET_ID,
+        range: 'Users!A:I',
+      });
+      const rows = getResponse.data.values || [];
+      let successCount = 0;
+      let failCount = 0;
+      const sentChatIds = new Set();
+      
+      for (let i = 1; i < rows.length; i++) {
+         const targetChatId = rows[i][8];
+         if (targetChatId && targetChatId.trim() !== '' && !sentChatIds.has(targetChatId)) {
+            try {
+               const url = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/copyMessage`;
+               await axios.post(url, {
+                 chat_id: targetChatId,
+                 from_chat_id: fromChatId,
+                 message_id: messageIdToCopy
+               });
+               successCount++;
+               sentChatIds.add(targetChatId);
+            } catch(e) {
+               failCount++;
+            }
+         }
+      }
+      
+      const usersFile = path.join(process.cwd(), 'data', 'users.json');
+      if (fs.existsSync(usersFile)) {
+         const usersJson = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+         for (const u of usersJson) {
+            if (u.accountantChatId && !sentChatIds.has(String(u.accountantChatId))) {
+                try {
+                   const url = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/copyMessage`;
+                   await axios.post(url, {
+                     chat_id: u.accountantChatId,
+                     from_chat_id: fromChatId,
+                     message_id: messageIdToCopy
+                   });
+                   successCount++;
+                   sentChatIds.add(String(u.accountantChatId));
+                } catch(e) {
+                   failCount++;
+                }
+            }
+         }
+      }
+      bot.sendMessage(adminChatId, `✅ הודעת התפוצה נשלחה ל-${successCount} משתמשים. (נכשלו: ${failCount})`);
+    } catch(err) {
+      bot.sendMessage(adminChatId, "❌ שגיאה בשליחת תפוצה: " + err.message);
+    }
+  };
+
+  // Consolidate all listeners into one master listener
   bot.on('message', async (msg) => {
-    if (msg.contact || msg.photo || msg.document || msg.voice || msg.text === '/start') return;
-    handleChat(msg);
+    if (msg.contact || msg.text === '/start') return; // Handled separately
+    
+    const chatId = msg.chat.id;
+    const user = await getUserByChatId(chatId);
+    
+    // Check if user is the main admin (Yaniv)
+    const isAdmin = (user && normalizePhone(user.phone) === normalizePhone("972546799182")) || 
+                    (msg.from && msg.from.id === chatId); // Wait, we must be absolutely sure. Let's just use the phone check if possible.
+    // If the admin hasn't shared contact yet, we fallback to hardcoding chat id? No, Yaniv is already in the system.
+    const isVerifiedAdmin = user && normalizePhone(user.phone) === normalizePhone("972546799182");
+
+    if (isVerifiedAdmin) {
+       if (adminStates[chatId] === 'WAITING_FOR_BROADCAST_MSG') {
+           delete adminStates[chatId];
+           return executeBroadcast(chatId, msg.message_id, chatId);
+       }
+       if (msg.text === 'שלח תפוצה') {
+           adminStates[chatId] = 'WAITING_FOR_BROADCAST_MSG';
+           return bot.sendMessage(chatId, "מה תרצה לשלוח? (אפשר לשלוח טקסט, תמונה, מסמך או קול - וההודעה תועתק כפי שהיא לכולם)");
+       }
+       
+       if (adminStates[chatId] === 'WAITING_FOR_USER_DETAILS' && msg.text) {
+           return handleUserCreation(chatId, msg.text);
+       }
+       
+       if (msg.text && msg.text.startsWith('הקמה')) {
+           const lines = msg.text.split('\n').map(l => l.trim()).filter(Boolean);
+           if (lines.length === 1) {
+               adminStates[chatId] = 'WAITING_FOR_USER_DETAILS';
+               return bot.sendMessage(chatId, "אנא שלח את פרטי המשתמש בשורות נפרדות:\nשם מלא\nמייל\nטלפון\n(אם זה משרד עורכי דין, הוסף 'מנהל משרד' בשורה רביעית)");
+           } else {
+               return handleUserCreation(chatId, msg.text);
+           }
+       }
+    }
+
+    // Fallback to normal functionality
+    if (msg.photo) {
+       const photo = msg.photo[msg.photo.length - 1];
+       return handleMedia(msg, photo.file_id, `photo_${Date.now()}.jpg`, 'image/jpeg');
+    }
+    if (msg.document) {
+       return handleMedia(msg, msg.document.file_id, msg.document.file_name || `doc_${Date.now()}.pdf`, msg.document.mime_type);
+    }
+    if (msg.voice || msg.text) {
+       return handleChat(msg);
+    }
   });
 
   return bot;
