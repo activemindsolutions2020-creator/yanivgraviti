@@ -381,4 +381,71 @@ router.put('/:targetEmail', async (req, res) => {
   }
 });
 
+// DELETE /api/users/:targetEmail - Delete a user (Admin only)
+router.delete('/:targetEmail', async (req, res) => {
+  try {
+    const { targetEmail } = req.params;
+    const { adminEmail } = req.body;
+
+    if (!adminEmail) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    const spreadsheetId = process.env.SPREADSHEET_ID;
+    
+    // 1. Get the sheet metadata to find the 'Users' sheetId
+    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+    const usersSheet = spreadsheet.data.sheets.find(s => s.properties.title === 'Users');
+    if (!usersSheet) return res.status(500).json({ success: false, message: 'Users sheet not found' });
+    const sheetId = usersSheet.properties.sheetId;
+
+    // 2. Find the row index of the user to delete
+    const getResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Users!A:D',
+    });
+
+    const rows = getResponse.data.values || [];
+    let userRole = null;
+    let targetRowIndex = -1;
+
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][0] === adminEmail && rows[i][3] === 'Approved') {
+        userRole = rows[i][2];
+      }
+      if (rows[i][0] === targetEmail) {
+        targetRowIndex = i;
+      }
+    }
+
+    if (userRole !== 'Admin') {
+      return res.status(403).json({ success: false, message: 'Forbidden: Only Admins can delete users' });
+    }
+    if (targetRowIndex === -1) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // 3. Delete the row using batchUpdate
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId: sheetId,
+              dimension: 'ROWS',
+              startIndex: targetRowIndex,
+              endIndex: targetRowIndex + 1
+            }
+          }
+        }]
+      }
+    });
+
+    return res.status(200).json({ success: true, message: 'User deleted successfully' });
+
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+
 export default router;

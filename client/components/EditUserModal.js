@@ -69,6 +69,29 @@ export default function EditUserModal({ isOpen, onClose, user, adminEmail, onSuc
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm("האם אתה בטוח שברצונך למחוק משתמש זה לחלוטין? פעולה זו אינה הפיכה!")) return;
+    try {
+      setLoading(true);
+      setError("");
+      
+      const res = await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${user.email}`, {
+        data: { adminEmail }
+      });
+      
+      if (res.data.success) {
+        onSuccess();
+        onClose();
+      } else {
+        setError(res.data.message || "שגיאה במחיקת המשתמש");
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || "אירעה שגיאה במחיקת המשתמש");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-all" dir="rtl">
       <div className="bg-white border border-slate-200 shadow-xl rounded-2xl p-8 w-full max-w-md mx-4 relative">
@@ -159,14 +182,24 @@ export default function EditUserModal({ isOpen, onClose, user, adminEmail, onSuc
             </select>
           </div>
 
-          <div className="pt-4">
+          <div className="pt-4 flex gap-2">
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 bg-blue-600 text-white rounded-lg shadow-sm font-medium hover:bg-blue-700 transition-all disabled:bg-slate-400 flex justify-center items-center gap-2"
+              className="flex-1 py-3.5 bg-blue-600 text-white rounded-lg shadow-sm font-medium hover:bg-blue-700 transition-all disabled:bg-slate-400 flex justify-center items-center gap-2"
             >
               {loading ? "שומר..." : "שמור שינויים"}
             </button>
+            {isAdmin && (
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleDelete}
+                className="px-6 py-3.5 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg shadow-sm font-medium hover:bg-rose-100 transition-all disabled:opacity-50"
+              >
+                מחק
+              </button>
+            )}
           </div>
 
         </form>

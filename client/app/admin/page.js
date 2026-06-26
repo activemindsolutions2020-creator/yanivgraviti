@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { Users, LogOut, ShieldCheck, UserPlus, ShieldBan, Settings, Edit2 } from "lucide-react";
+import { Users, LogOut, ShieldCheck, UserPlus, ShieldBan, Settings, Edit2, Trash2 } from "lucide-react";
 import EditUserModal from "../../components/EditUserModal";
 import BroadcastPanel from "../../components/BroadcastPanel";
 
@@ -61,6 +61,18 @@ export default function AdminDashboard() {
       fetchUsers(); // Refresh
     } catch (err) {
       alert("שגיאה בעדכון המשתמש");
+    }
+  };
+
+  const deleteUser = async (targetEmail) => {
+    if (!confirm("האם למחוק משתמש זה לחלוטין? פעולה זו אינה הפיכה!")) return;
+    try {
+      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${targetEmail}`, {
+        data: { adminEmail: session.user.email }
+      });
+      fetchUsers();
+    } catch (err) {
+      alert("שגיאה במחיקת המשתמש");
     }
   };
 
@@ -312,6 +324,15 @@ export default function AdminDashboard() {
                             className="px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-md text-xs font-semibold hover:bg-rose-100 transition-colors"
                           >
                             הקפא
+                          </button>
+                        )}
+                        {session.user.role === 'Admin' && u.email !== session.user.email && (
+                          <button 
+                            onClick={() => deleteUser(u.email)}
+                            className="px-2 py-1.5 text-rose-500 hover:bg-rose-50 rounded-md transition-colors flex items-center justify-center"
+                            title="מחק משתמש"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         )}
                       </td>
