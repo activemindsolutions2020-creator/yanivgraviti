@@ -61,7 +61,7 @@ export const initTelegramBot = () => {
       const rows = getResponse.data.values || [];
       for (let i = 1; i < rows.length; i++) {
         if (rows[i][8] == chatId) {
-          return { email: rows[i][0], name: rows[i][1], phone: rows[i][7], rowIndex: i };
+          return { email: rows[i][0], name: rows[i][1], role: rows[i][2], phone: rows[i][7], rowIndex: i };
         }
       }
     } catch (err) {
@@ -532,11 +532,11 @@ export const initTelegramBot = () => {
     const chatId = msg.chat.id;
     const user = await getUserByChatId(chatId);
     
-    // Check if user is the main admin (Yaniv)
+    // Check if user is the main admin (Yaniv) or has Admin role in DB
     const isAdmin = (user && normalizePhone(user.phone) === normalizePhone("972546799182")) || 
                     (msg.from && msg.from.id === chatId); // Wait, we must be absolutely sure. Let's just use the phone check if possible.
     // If the admin hasn't shared contact yet, we fallback to hardcoding chat id? No, Yaniv is already in the system.
-    const isVerifiedAdmin = user && normalizePhone(user.phone) === normalizePhone("972546799182");
+    const isVerifiedAdmin = user && (normalizePhone(user.phone) === normalizePhone("972546799182") || user.role === 'Admin');
 
     if (isVerifiedAdmin) {
        const adminState = adminStates[chatId];
