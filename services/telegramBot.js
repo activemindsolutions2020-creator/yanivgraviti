@@ -332,7 +332,7 @@ export const initTelegramBot = () => {
   // Helper for admin user creation
   const handleUserCreation = async (chatId, text) => {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-    const dataLines = lines.filter(l => l !== 'הקמה' && !l.includes('מנהל משרד'));
+    const dataLines = lines.filter(l => l !== 'הקמה' && !l.includes('מנהל משרד') && !l.includes('חדלות פירעון'));
     
     if (dataLines.length < 3) {
       return bot.sendMessage(chatId, "חסרים פרטים. אנא שלח: שם מלא, מייל, טלפון.");
@@ -347,6 +347,7 @@ export const initTelegramBot = () => {
     }
 
     const isManager = text.includes('מנהל משרד');
+    const isInsolvency = text.includes('חדלות פירעון');
     
     try {
       const createdAt = new Date().toISOString();
@@ -360,8 +361,34 @@ export const initTelegramBot = () => {
           values: [[email, name, isManager ? 'Manager' : 'User', 'Approved', createdAt, encryptedPassword, 'Admin', phone, '', '25', '']]
         }
       });
+
+      // Update users.json with insolvency status
+      try {
+        const DATA_FILE = path.join(process.cwd(), 'data', 'users.json');
+        if (!fs.existsSync(path.join(process.cwd(), 'data'))) {
+          fs.mkdirSync(path.join(process.cwd(), 'data'));
+        }
+        let users = [];
+        if (fs.existsSync(DATA_FILE)) {
+          users = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        }
+        const userIndex = users.findIndex(u => u.userEmail === email);
+        if (userIndex > -1) {
+          users[userIndex].isInsolvency = isInsolvency;
+        } else {
+          users.push({ userEmail: email, isInsolvency: isInsolvency });
+        }
+        fs.writeFileSync(DATA_FILE, JSON.stringify(users, null, 2));
+      } catch (e) {
+        console.error("Failed to update users.json for insolvency flag:", e);
+      }
+
       delete adminStates[chatId];
-      bot.sendMessage(chatId, `✅ המשתמש ${name} הוקם בהצלחה כ${isManager ? 'מנהל משרד' : 'משתמש רגיל'}!`);
+      let successMsg = `✅ המשתמש ${name} הוקם בהצלחה כ${isManager ? 'מנהל משרד' : 'משתמש רגיל'}!`;
+      if (isInsolvency) {
+        successMsg += `\nהלקוח הוגדר כלקוח חדלות פירעון.`;
+      }
+      bot.sendMessage(chatId, successMsg);
     } catch(e) {
       bot.sendMessage(chatId, "❌ שגיאה בהקמת המשתמש: " + e.message);
     }
