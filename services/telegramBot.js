@@ -559,6 +559,10 @@ export const initTelegramBot = () => {
        }
        
        if (msg.text === 'שלח תפוצה') {
+           const allowedBroadcastEmails = ['activemind.solutions2020@gmail.com', 'nmshivuk@gmail.com'];
+           if (!user || !allowedBroadcastEmails.includes(user.email)) {
+               return bot.sendMessage(chatId, "❌ אין לך הרשאה לשלוח הודעות תפוצה.");
+           }
            adminStates[chatId] = 'WAITING_FOR_BROADCAST_MSG';
            return bot.sendMessage(chatId, "מה תרצה לשלוח? (אפשר לשלוח טקסט, תמונה, מסמך או קול - וההודעה תועתק כפי שהיא לכולם)");
        }

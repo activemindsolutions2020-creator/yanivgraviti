@@ -10,6 +10,11 @@ router.post('/broadcast', async (req, res) => {
     const { adminEmail, chatIds, message } = req.body;
 
     if (!adminEmail) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    const allowedBroadcastEmails = ['activemind.solutions2020@gmail.com', 'nmshivuk@gmail.com'];
+    if (!allowedBroadcastEmails.includes(adminEmail)) {
+      return res.status(403).json({ success: false, message: 'Forbidden: User not authorized to broadcast' });
+    }
+
     if (!message || message.trim() === '') return res.status(400).json({ success: false, message: 'Message is required' });
     if (!Array.isArray(chatIds) || chatIds.length === 0) {
       return res.status(400).json({ success: false, message: 'At least one recipient is required' });

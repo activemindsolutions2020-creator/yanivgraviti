@@ -245,7 +245,7 @@ export default function AdminDashboard() {
             </form>
           </div>
 
-          {session.user.role === 'Admin' && <BroadcastPanel users={users} adminEmail={session.user.email} />}
+          {session.user.role === 'Admin' && ['activemind.solutions2020@gmail.com', 'nmshivuk@gmail.com'].includes(session.user.email) && <BroadcastPanel users={users} adminEmail={session.user.email} />}
 
           {/* Users Table Card */}
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
