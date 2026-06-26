@@ -424,6 +424,107 @@ export const initTelegramBot = () => {
     }
   };
 
+  // Helper for admin action: Search user by identifier
+  const handleUserSearchForAction = async (chatId, text, actionType) => {
+    bot.sendMessage(chatId, "⏳ מחפש משתמש במערכת...");
+    try {
+      const getResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId: process.env.SPREADSHEET_ID,
+        range: 'Users!A:I',
+      });
+      const rows = getResponse.data.values || [];
+      const searchTarget = text.trim().toLowerCase();
+      const searchPhone = normalizePhone(searchTarget);
+      
+      let foundRowIndex = -1;
+      let foundEmail = "";
+      let foundName = "";
+      
+      for (let i = 1; i < rows.length; i++) {
+        const rowEmail = (rows[i][0] || "").toLowerCase();
+        const rowPhone = normalizePhone(rows[i][7]);
+        
+        if (rowEmail === searchTarget || (searchPhone && rowPhone === searchPhone)) {
+          foundRowIndex = i;
+          foundEmail = rows[i][0];
+          foundName = rows[i][1];
+          break;
+        }
+      }
+      
+      if (foundRowIndex === -1) {
+         return bot.sendMessage(chatId, "❌ לא מצאתי משתמש עם המייל או הטלפון שסיפקת. אנא ודא שהפרטים נכונים ונסה שוב (שלח את המזהה שוב).");
+      }
+      
+      const actionText = actionType === 'delete' ? 'למחוק לחלוטין' : 'להקפיא';
+      adminStates[chatId] = { 
+         state: actionType === 'delete' ? 'CONFIRM_DELETE' : 'CONFIRM_FREEZE',
+         rowIndex: foundRowIndex,
+         email: foundEmail,
+         name: foundName
+      };
+      
+      bot.sendMessage(chatId, `מצאתי את המשתמש:\nשם: ${foundName}\nמייל: ${foundEmail}\n\nהאם אתה בטוח שברצונך ${actionText} את המשתמש?\nהשב 'כן' לאישור או 'לא' לביטול.`);
+      
+    } catch(e) {
+      bot.sendMessage(chatId, "❌ שגיאה בחיפוש המשתמש: " + e.message);
+    }
+  };
+
+  // Helper for admin action: Confirm and Execute
+  const handleUserActionConfirm = async (chatId, text, actionData) => {
+    const reply = text.trim().toLowerCase();
+    if (reply !== 'כן' && reply !== 'לא') {
+       return bot.sendMessage(chatId, "אנא השב 'כן' כדי לאשר או 'לא' כדי לבטל.");
+    }
+    
+    if (reply === 'לא') {
+       delete adminStates[chatId];
+       return bot.sendMessage(chatId, "✅ הפעולה בוטלה.");
+    }
+    
+    // User confirmed 'כן'
+    bot.sendMessage(chatId, "⏳ מבצע פעולה...");
+    try {
+       const spreadsheetId = process.env.SPREADSHEET_ID;
+       
+       if (actionData.state === 'CONFIRM_FREEZE') {
+          await sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range: `Users!D${actionData.rowIndex + 1}`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values: [['Frozen']] }
+          });
+          bot.sendMessage(chatId, `✅ המשתמש ${actionData.name} הוקפא בהצלחה.`);
+       } else if (actionData.state === 'CONFIRM_DELETE') {
+          // Get sheetId
+          const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+          const usersSheet = spreadsheet.data.sheets.find(s => s.properties.title === 'Users');
+          if (!usersSheet) throw new Error("Users sheet not found");
+          
+          await sheets.spreadsheets.batchUpdate({
+            spreadsheetId,
+            requestBody: {
+              requests: [{
+                deleteDimension: {
+                  range: {
+                    sheetId: usersSheet.properties.sheetId,
+                    dimension: 'ROWS',
+                    startIndex: actionData.rowIndex,
+                    endIndex: actionData.rowIndex + 1
+                  }
+                }
+              }]
+            }
+          });
+          bot.sendMessage(chatId, `✅ המשתמש ${actionData.name} נמחק לחלוטין בהצלחה.`);
+       }
+       delete adminStates[chatId];
+    } catch(e) {
+       bot.sendMessage(chatId, "❌ שגיאה בביצוע הפעולה: " + e.message);
+    }
+  };
+
   // Consolidate all listeners into one master listener
   bot.on('message', async (msg) => {
     if (msg.contact || msg.text === '/start') return; // Handled separately
@@ -438,17 +539,38 @@ export const initTelegramBot = () => {
     const isVerifiedAdmin = user && normalizePhone(user.phone) === normalizePhone("972546799182");
 
     if (isVerifiedAdmin) {
-       if (adminStates[chatId] === 'WAITING_FOR_BROADCAST_MSG') {
+       const adminState = adminStates[chatId];
+       
+       if (adminState === 'WAITING_FOR_BROADCAST_MSG') {
            delete adminStates[chatId];
            return executeBroadcast(chatId, msg.message_id, chatId);
        }
+       if (adminState === 'WAITING_FOR_USER_DETAILS' && msg.text) {
+           return handleUserCreation(chatId, msg.text);
+       }
+       if (adminState === 'WAITING_FOR_USER_ID_FREEZE' && msg.text) {
+           return handleUserSearchForAction(chatId, msg.text, 'freeze');
+       }
+       if (adminState === 'WAITING_FOR_USER_ID_DELETE' && msg.text) {
+           return handleUserSearchForAction(chatId, msg.text, 'delete');
+       }
+       if (typeof adminState === 'object' && (adminState.state === 'CONFIRM_FREEZE' || adminState.state === 'CONFIRM_DELETE')) {
+           return handleUserActionConfirm(chatId, msg.text, adminState);
+       }
+       
        if (msg.text === 'שלח תפוצה') {
            adminStates[chatId] = 'WAITING_FOR_BROADCAST_MSG';
            return bot.sendMessage(chatId, "מה תרצה לשלוח? (אפשר לשלוח טקסט, תמונה, מסמך או קול - וההודעה תועתק כפי שהיא לכולם)");
        }
        
-       if (adminStates[chatId] === 'WAITING_FOR_USER_DETAILS' && msg.text) {
-           return handleUserCreation(chatId, msg.text);
+       if (msg.text === 'הקפא משתמש') {
+           adminStates[chatId] = 'WAITING_FOR_USER_ID_FREEZE';
+           return bot.sendMessage(chatId, "אנא שלח לי את המייל או מספר הטלפון של המשתמש שברצונך להקפיא:");
+       }
+       
+       if (msg.text === 'מחק משתמש') {
+           adminStates[chatId] = 'WAITING_FOR_USER_ID_DELETE';
+           return bot.sendMessage(chatId, "אנא שלח לי את המייל או מספר הטלפון של המשתמש שברצונך למחוק לחלוטין:");
        }
        
        if (msg.text && msg.text.startsWith('הקמה')) {
