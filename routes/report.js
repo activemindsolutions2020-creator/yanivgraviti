@@ -184,7 +184,7 @@ export const generateUserReport = async (userEmail, targetMonthYear = null) => {
     </head>
     <body>
       <div class="header">
-        <h1>דו"ח פיננסי חודשי - חדלות פירעון</h1>
+        <h1>דו"ח פיננסי חודשי</h1>
         <p>חשבון: <strong>${userEmail}</strong></p>
         <p>סה"כ עסקאות מדווחות בדו"ח זה: <strong>${pendingInvoices.length}</strong></p>
         <p>תאריך הפקה: <strong>${new Date().toLocaleDateString('he-IL')}</strong></p>
