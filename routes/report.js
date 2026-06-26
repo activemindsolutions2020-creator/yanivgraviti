@@ -221,19 +221,28 @@ export const generateUserReport = async (userEmail, targetMonthYear = null) => {
     </html>
     `;
 
-    const browser = await puppeteer.launch({ 
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-    await page.pdf({ 
-       path: filePath, 
-       format: 'A4', 
-       printBackground: true,
-       margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' }
-    });
-    await browser.close();
+    let browser;
+    try {
+      browser = await puppeteer.launch({ 
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      });
+      const page = await browser.newPage();
+      
+      // Increase timeout for large reports and use networkidle2 to prevent hanging on external assets
+      await page.setContent(htmlContent, { waitUntil: 'networkidle2', timeout: 60000 });
+      await page.pdf({ 
+         path: filePath, 
+         format: 'A4', 
+         printBackground: true,
+         timeout: 60000,
+         margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' }
+      });
+    } finally {
+      if (browser) {
+        await browser.close();
+      }
+    }
 
     // Only mark as reported if we are generating a pending report, NOT a historical one
     if (!targetMonthYear) {

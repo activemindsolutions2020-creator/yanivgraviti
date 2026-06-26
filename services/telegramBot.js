@@ -314,7 +314,11 @@ export const initTelegramBot = () => {
             }
           } catch (reportErr) {
             console.error("Error generating report for bot:", reportErr);
-            bot.sendMessage(chatId, "❌ אירעה שגיאה בעת הפקת הדו\"ח.");
+            let errMsg = "❌ אירעה שגיאה בעת הפקת הדו\"ח.";
+            if (user.phone && normalizePhone(user.phone) === normalizePhone("972546799182")) {
+               errMsg += `\n\n[DEBUG ERROR INFO]\n${reportErr.message}`;
+            }
+            bot.sendMessage(chatId, errMsg);
           }
         } else {
           // It's a chat response. Never use parse_mode here because Gemini outputs asterisks and it crashes Telegram!
