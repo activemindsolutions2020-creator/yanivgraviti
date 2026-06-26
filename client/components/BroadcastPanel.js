@@ -9,8 +9,8 @@ export default function BroadcastPanel({ users, adminEmail }) {
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [result, setResult] = useState(null);
 
-  // Filter users who have a Telegram Chat ID
-  const eligibleUsers = users.filter(u => u.telegramChatId && u.status === 'Approved');
+  // Filter users to include all approved users
+  const eligibleUsers = users.filter(u => u.status === 'Approved');
 
   const toggleSelection = (email) => {
     if (selectedEmails.includes(email)) {
@@ -91,7 +91,12 @@ export default function BroadcastPanel({ users, adminEmail }) {
                     <Square className="w-4 h-4 text-slate-300" />
                   )}
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-slate-700">{u.name}</span>
+                    <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                      {u.name}
+                      {!u.telegramChatId && (
+                        <span className="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded border border-amber-200">לא מחובר לבוט</span>
+                      )}
+                    </span>
                     <span className="text-xs text-slate-500">{u.email}</span>
                   </div>
                 </div>
