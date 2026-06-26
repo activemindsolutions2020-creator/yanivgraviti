@@ -156,7 +156,7 @@ If there is only one receipt, return an array with one object. If you cannot fin
     }
     if (MODELS_TO_TRY.length === 0) {
       console.warn("Failed to dynamically fetch models list with all keys, using hardcoded fallback.");
-      MODELS_TO_TRY = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro"];
+      MODELS_TO_TRY = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"];
     }
     
     console.log(`Dynamically selected models to try in order: ${MODELS_TO_TRY.join(", ")}`);
