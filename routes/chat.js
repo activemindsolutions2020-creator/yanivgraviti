@@ -99,6 +99,7 @@ You must answer in Hebrew, be empathetic, professional, and helpful. Do NOT ment
 
     const fullSystemPrompt = `${basePrompt}
 THE CURRENT DATE IS: ${new Date().toLocaleDateString('en-GB')} (DD/MM/YYYY). All implicit dates should be relative to this date.
+SYSTEM LINK: If the user asks for the link to the system/website, or how to enter the system, provide this exact link: https://yanivgraviti.vercel.app/
 
 ${rulesSection}
 
