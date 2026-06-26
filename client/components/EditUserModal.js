@@ -76,7 +76,7 @@ export default function EditUserModal({ isOpen, onClose, user, adminEmail, onSuc
       setError("");
       
       const res = await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${user.email}`, {
-        data: { adminEmail }
+        params: { adminEmail }
       });
       
       if (res.data.success) {

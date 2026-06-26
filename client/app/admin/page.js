@@ -68,7 +68,7 @@ export default function AdminDashboard() {
     if (!confirm("האם למחוק משתמש זה לחלוטין? פעולה זו אינה הפיכה!")) return;
     try {
       await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${targetEmail}`, {
-        data: { adminEmail: session.user.email }
+        params: { adminEmail: session.user.email }
       });
       fetchUsers();
     } catch (err) {

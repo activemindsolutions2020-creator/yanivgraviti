@@ -385,7 +385,7 @@ router.put('/:targetEmail', async (req, res) => {
 router.delete('/:targetEmail', async (req, res) => {
   try {
     const { targetEmail } = req.params;
-    const { adminEmail } = req.body;
+    const { adminEmail } = req.query;
 
     if (!adminEmail) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
