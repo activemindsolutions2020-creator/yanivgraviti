@@ -191,7 +191,7 @@ IMPORTANT: Never use unescaped double quotes (") inside the JSON string values. 
     }
     if (MODELS_TO_TRY.length === 0) {
       console.warn("Failed to dynamically fetch models list with all keys, using hardcoded fallback.");
-      MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-3.1-flash-lite", "gemini-3-flash-preview"];
+      MODELS_TO_TRY = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro"];
     }
 
     // Loop through models FIRST
