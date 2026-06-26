@@ -161,6 +161,17 @@ If there is only one receipt, return an array with one object. If you cannot fin
     
     console.log(`Dynamically selected models to try in order: ${MODELS_TO_TRY.join(", ")}`);
 
+    const rawPayload = {
+      contents: [{
+         role: "user",
+         parts: [
+           { text: prompt },
+           ...imageParts
+         ]
+      }],
+      generationConfig: { responseMimeType: "application/json" }
+    };
+
     // Loop through models FIRST.
     for (const modelName of MODELS_TO_TRY) {
       console.log(`\n--- Trying model: ${modelName} ---`);
@@ -169,19 +180,37 @@ If there is only one receipt, return an array with one object. If you cannot fin
       for (const activeKey of keys) {
         try {
           console.log(`Attempting to analyze using model: ${modelName} with API Key ending in ...${activeKey.slice(-4)}`);
-          const genAI = new GoogleGenerativeAI(activeKey);
-          const model = genAI.getGenerativeModel({ 
-            model: modelName,
-            generationConfig: { responseMimeType: "application/json" }
-          });
           
-          const result = await model.generateContent([prompt, ...imageParts]);
-          const response = await result.response;
-          resultText = response.text();
+          const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${activeKey}`;
+          let response;
+
+          if (process.env.GEMINI_PROXY_URL) {
+            response = await fetch(process.env.GEMINI_PROXY_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ targetUrl, payload: rawPayload })
+            });
+          } else {
+            response = await fetch(targetUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(rawPayload)
+            });
+          }
           
-          console.log(`Successfully analyzed using model: ${modelName}`);
-          success = true;
-          break; // Break the KEY loop, we succeeded!
+          const result = await response.json();
+          if (!response.ok || result.error) {
+             throw new Error(result.error ? result.error.message : JSON.stringify(result));
+          }
+
+          if (result.candidates && result.candidates[0] && result.candidates[0].content && result.candidates[0].content.parts[0]) {
+             resultText = result.candidates[0].content.parts[0].text;
+             console.log(`Successfully analyzed using model: ${modelName}`);
+             success = true;
+             break; // Break the KEY loop, we succeeded!
+          } else {
+             throw new Error("Invalid response structure from Gemini API");
+          }
         } catch (error) {
           console.warn(`Model ${modelName} failed with key ...${activeKey.slice(-4)}. Error: ${error.message}`);
           firstError = error; // Always update so we see the LATEST error (like 429), not a masked 404 from a failed model

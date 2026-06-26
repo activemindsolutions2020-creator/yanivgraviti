@@ -150,7 +150,7 @@ Return JSON EXACTLY in this format:
 CRITICAL: Return ONLY valid JSON. Do not include markdown \`\`\`json blocks.
 IMPORTANT: Never use unescaped double quotes (") inside the JSON string values. For Hebrew abbreviations like דו"ח or מע"מ, use single quotes instead: דו'ח, מע'מ.`;
 
-    const contents = [];
+    let contents = [];
     if (file) {
       contents.push({
         inlineData: {
@@ -160,8 +160,14 @@ IMPORTANT: Never use unescaped double quotes (") inside the JSON string values. 
       });
     }
     if (textMessage) {
-      contents.push(textMessage);
+      contents.push({ text: textMessage });
     }
+
+    // Add system instruction inside the contents (as first part, or using systemInstruction field in raw API)
+    const rawPayload = {
+      systemInstruction: { parts: [{ text: fullSystemPrompt }] },
+      contents: [{ role: "user", parts: contents }]
+    };
 
     let resultText = null;
     let firstError = null;
@@ -199,15 +205,37 @@ IMPORTANT: Never use unescaped double quotes (") inside the JSON string values. 
       // Try each key
       for (const activeKey of keys) {
         try {
-          const genAI = new GoogleGenerativeAI(activeKey);
-          const model = genAI.getGenerativeModel({ 
-             model: modelName,
-             systemInstruction: fullSystemPrompt 
-          });
-          const result = await model.generateContent(contents);
-          resultText = result.response.text();
-          success = true;
-          break; // Break the KEY loop
+          const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${activeKey}`;
+          
+          let response;
+          if (process.env.GEMINI_PROXY_URL) {
+            // Use the proxy
+            response = await fetch(process.env.GEMINI_PROXY_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ targetUrl, payload: rawPayload })
+            });
+          } else {
+            // Direct call (fallback if no proxy configured)
+            response = await fetch(targetUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(rawPayload)
+            });
+          }
+
+          const result = await response.json();
+          if (!response.ok || result.error) {
+             throw new Error(result.error ? result.error.message : JSON.stringify(result));
+          }
+
+          if (result.candidates && result.candidates[0] && result.candidates[0].content && result.candidates[0].content.parts[0]) {
+            resultText = result.candidates[0].content.parts[0].text;
+            success = true;
+            break; // Break the KEY loop
+          } else {
+            throw new Error("Invalid response structure from Gemini API");
+          }
         } catch (err) {
           firstError = err;
           if (err.message && (err.message.includes("404") || err.message.includes("not found"))) break;
