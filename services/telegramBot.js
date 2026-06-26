@@ -1,5 +1,5 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { sheets } from '../server.js';
+import { sheets, encryptData } from '../server.js';
 import axios from 'axios';
 import FormData from 'form-data';
 import fs from 'fs';
@@ -342,13 +342,14 @@ export const initTelegramBot = () => {
     
     try {
       const createdAt = new Date().toISOString();
+      const encryptedPassword = encryptData(phone);
       await sheets.spreadsheets.values.append({
         spreadsheetId: process.env.SPREADSHEET_ID,
         range: 'Users!A:K',
         valueInputOption: 'USER_ENTERED',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
-          values: [[email, name, isManager ? 'Manager' : 'User', 'Approved', createdAt, '', 'Admin', phone, '', '25', '']]
+          values: [[email, name, isManager ? 'Manager' : 'User', 'Approved', createdAt, encryptedPassword, 'Admin', phone, '', '25', '']]
         }
       });
       delete adminStates[chatId];
