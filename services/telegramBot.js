@@ -332,12 +332,20 @@ export const initTelegramBot = () => {
   // Helper for admin user creation
   const handleUserCreation = async (chatId, text) => {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-    if (lines.length < 3) {
+    const dataLines = lines.filter(l => l !== 'הקמה' && !l.includes('מנהל משרד'));
+    
+    if (dataLines.length < 3) {
       return bot.sendMessage(chatId, "חסרים פרטים. אנא שלח: שם מלא, מייל, טלפון.");
     }
-    const name = lines.length === 3 ? lines[0] : (lines[0] === 'הקמה' ? lines[1] : lines[0]);
-    const email = lines.length === 3 ? lines[1] : (lines[0] === 'הקמה' ? lines[2] : lines[1]);
-    const phone = lines.length === 3 ? lines[2] : (lines[0] === 'הקמה' ? lines[3] : lines[2]);
+
+    const email = dataLines.find(l => l.includes('@'));
+    const phone = dataLines.find(l => /\d{9,}/.test(l.replace(/\D/g, '')));
+    const name = dataLines.find(l => l !== email && l !== phone) || dataLines[0];
+
+    if (!email || !phone) {
+       return bot.sendMessage(chatId, "❌ לא הצלחתי לזהות כתובת מייל או טלפון בהודעה שלך. אנא ודא שהם תקינים.");
+    }
+
     const isManager = text.includes('מנהל משרד');
     
     try {
