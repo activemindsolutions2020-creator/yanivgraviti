@@ -217,7 +217,8 @@ IMPORTANT: Never use unescaped double quotes (") inside the JSON string values. 
     }
 
     if (!resultText) {
-      throw firstError || new Error("Failed to generate response.");
+      const activeKeySuffix = keys[0] ? keys[0].slice(-4) : "NONE";
+      throw new Error((firstError ? firstError.message : "Failed to generate response") + ` (Key ending in ...${activeKeySuffix})`);
     }
 
     // Clean JSON
