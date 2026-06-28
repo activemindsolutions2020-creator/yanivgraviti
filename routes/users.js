@@ -1,5 +1,6 @@
 import express from 'express';
 import { sheets, encryptData, decryptData } from '../server.js';
+import nodemailer from 'nodemailer';
 
 const router = express.Router();
 
@@ -25,10 +26,10 @@ async function ensureUsersSheet() {
       // Add headers
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: 'Users!A1:K1',
+        range: 'Users!A1:L1',
         valueInputOption: 'USER_ENTERED',
         requestBody: {
-          values: [['Email', 'Name', 'Role', 'Status', 'CreatedAt', 'Password', 'CreatedBy', 'Phone', 'TelegramChatId', 'ReminderDay', 'ReminderMessage']]
+          values: [['Email', 'Name', 'Role', 'Status', 'CreatedAt', 'Password', 'CreatedBy', 'Phone', 'TelegramChatId', 'ReminderDay', 'ReminderMessage', 'ForcePasswordChange']]
         }
       });
     }
@@ -49,7 +50,7 @@ router.post('/auth', async (req, res) => {
     // Fetch all users
     const getResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Users!A:K',
+      range: 'Users!A:L',
     });
 
     const rows = getResponse.data.values || [];
@@ -69,7 +70,8 @@ router.post('/auth', async (req, res) => {
           phone: rows[i][7] || "",
           telegramChatId: rows[i][8] || "",
           reminderDay: rows[i][9] || "25",
-          reminderMessage: rows[i][10] || ""
+          reminderMessage: rows[i][10] || "",
+          forcePasswordChange: rows[i][11] === 'TRUE'
         };
         break;
       }
@@ -152,7 +154,8 @@ router.post('/login', async (req, res) => {
               email: rows[i][0],
               name: rows[i][1],
               role: rows[i][2],
-              status: rows[i][3]
+              status: rows[i][3],
+              forcePasswordChange: rows[i][11] === 'TRUE'
             };
             break;
           }
@@ -510,6 +513,164 @@ router.get('/stats', async (req, res) => {
   } catch (error) {
     console.error('Error fetching admin stats:', error);
     return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+
+// POST /api/users/forgot-password
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email required' });
+
+    const spreadsheetId = process.env.SPREADSHEET_ID;
+    const getResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Users!A:L',
+    });
+
+    const rows = getResponse.data.values || [];
+    let userRowIndex = -1;
+
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][0] === email) {
+        userRowIndex = i;
+        break;
+      }
+    }
+
+    if (userRowIndex === -1) {
+      // Don't leak that user doesn't exist for security
+      return res.status(200).json({ success: true, message: 'If email exists, a password reset link has been sent.' });
+    }
+
+    // Generate Temp Password
+    const tempPassword = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const encryptedPassword = encryptData(tempPassword);
+
+    // Update Sheet: Password in Col F (index 5), ForcePasswordChange in Col L (index 11)
+    const rowNum = userRowIndex + 1;
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `Users!F${rowNum}:L${rowNum}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [
+          [
+            encryptedPassword, // F
+            rows[userRowIndex][6] || '', // G
+            rows[userRowIndex][7] || '', // H
+            rows[userRowIndex][8] || '', // I
+            rows[userRowIndex][9] || '', // J
+            rows[userRowIndex][10] || '', // K
+            'TRUE' // L
+          ]
+        ]
+      }
+    });
+
+    // Send Email
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS
+        }
+      });
+
+      const mailOptions = {
+        from: `"מערכת לניהול כלכלי" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'איפוס סיסמה למערכת',
+        html: `
+          <div dir="rtl" style="font-family: Arial, sans-serif;">
+            <h2>שלום,</h2>
+            <p>ביקשת לאפס את הסיסמה שלך למערכת.</p>
+            <p>הסיסמה הזמנית שלך היא: <strong>${tempPassword}</strong></p>
+            <p>לאחר ההתחברות הבאה שלך, תתבקש להחליף סיסמה זו לסיסמה אישית משלך.</p>
+          </div>
+        `
+      };
+
+      await transporter.sendMail(mailOptions);
+    } else {
+      console.warn('EMAIL_USER and EMAIL_PASS not set. Could not send temp password email. Temp password is:', tempPassword);
+    }
+
+    return res.status(200).json({ success: true, message: 'Password reset instructions sent.' });
+  } catch (error) {
+    console.error('Error in forgot-password:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// PUT /api/users/password - Update password and clear ForcePasswordChange
+router.put('/password', async (req, res) => {
+  try {
+    const { email, oldPassword, newPassword } = req.body;
+    if (!email || !oldPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Missing fields' });
+    }
+
+    const spreadsheetId = process.env.SPREADSHEET_ID;
+    const getResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Users!A:L',
+    });
+
+    const rows = getResponse.data.values || [];
+    let userRowIndex = -1;
+    let isPasswordValid = false;
+
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][0] === email) {
+        userRowIndex = i;
+        const encryptedStoredPassword = rows[i][5];
+        if (encryptedStoredPassword) {
+          try {
+            const decryptedStoredPassword = decryptData(encryptedStoredPassword);
+            if (decryptedStoredPassword === oldPassword) {
+              isPasswordValid = true;
+            }
+          } catch (e) {
+            console.error('Decryption error for user', email);
+          }
+        }
+        break;
+      }
+    }
+
+    if (userRowIndex === -1 || !isPasswordValid) {
+      return res.status(401).json({ success: false, message: 'Invalid current password' });
+    }
+
+    const newEncryptedPassword = encryptData(newPassword);
+    const rowNum = userRowIndex + 1;
+
+    // Update password (Col F) and clear ForcePasswordChange (Col L)
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `Users!F${rowNum}:L${rowNum}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [
+          [
+            newEncryptedPassword, // F
+            rows[userRowIndex][6] || '', // G
+            rows[userRowIndex][7] || '', // H
+            rows[userRowIndex][8] || '', // I
+            rows[userRowIndex][9] || '', // J
+            rows[userRowIndex][10] || '', // K
+            'FALSE' // L
+          ]
+        ]
+      }
+    });
+
+    return res.status(200).json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Error updating password:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

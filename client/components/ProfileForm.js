@@ -20,6 +20,13 @@ export default function ProfileForm({ userEmail }) {
   });
   const [status, setStatus] = useState(null);
 
+  const [pwdData, setPwdData] = useState({
+    oldPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  });
+  const [pwdStatus, setPwdStatus] = useState(null);
+
   useEffect(() => {
     if (!userEmail) return;
     axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/profile?userEmail=${userEmail}`)
@@ -54,6 +61,40 @@ export default function ProfileForm({ userEmail }) {
       setStatus({ 
         type: "error", 
         message: error.response?.data?.message || "אירעה שגיאה לא צפויה" 
+      });
+    }
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (pwdData.newPassword !== pwdData.confirmPassword) {
+      setPwdStatus({ type: "error", message: "הסיסמאות החדשות אינן תואמות" });
+      return;
+    }
+    if (pwdData.newPassword.length < 6) {
+      setPwdStatus({ type: "error", message: "סיסמה חדשה חייבת להכיל לפחות 6 תווים" });
+      return;
+    }
+
+    setPwdStatus({ type: "loading", message: "מעדכן סיסמה..." });
+    
+    try {
+      const res = await axios.put(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/users/password`, {
+        email: userEmail,
+        oldPassword: pwdData.oldPassword,
+        newPassword: pwdData.newPassword
+      });
+
+      if (res.data.success) {
+        setPwdStatus({ type: "success", message: "הסיסמה עודכנה בהצלחה!" });
+        setPwdData({ oldPassword: "", newPassword: "", confirmPassword: "" });
+      } else {
+        setPwdStatus({ type: "error", message: res.data.message });
+      }
+    } catch (error) {
+      setPwdStatus({ 
+        type: "error", 
+        message: error.response?.data?.message || "סיסמה נוכחית שגויה או שגיאת שרת" 
       });
     }
   };
@@ -219,6 +260,47 @@ export default function ProfileForm({ userEmail }) {
           </div>
         )}
       </form>
+
+      <div className="border-t border-slate-200 mt-10 pt-8">
+        <h2 className="text-lg font-bold text-slate-800 mb-6">אבטחה והתחברות</h2>
+        <form onSubmit={handlePasswordSubmit} className="space-y-4">
+          <input
+            type="password"
+            placeholder="סיסמה נוכחית"
+            value={pwdData.oldPassword}
+            onChange={(e) => setPwdData({...pwdData, oldPassword: e.target.value})}
+            required
+            className="w-full p-3.5 rounded-lg border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700"
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <input
+              type="password"
+              placeholder="סיסמה חדשה"
+              value={pwdData.newPassword}
+              onChange={(e) => setPwdData({...pwdData, newPassword: e.target.value})}
+              required
+              className="w-full p-3.5 rounded-lg border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700"
+            />
+            <input
+              type="password"
+              placeholder="אימות סיסמה חדשה"
+              value={pwdData.confirmPassword}
+              onChange={(e) => setPwdData({...pwdData, confirmPassword: e.target.value})}
+              required
+              className="w-full p-3.5 rounded-lg border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700"
+            />
+          </div>
+          <button type="submit" disabled={pwdStatus?.type === 'loading'} className="w-full px-6 py-3.5 rounded-lg bg-slate-800 text-white font-medium shadow-sm hover:bg-slate-900 transition-all disabled:opacity-70">
+            {pwdStatus?.type === 'loading' ? 'מעדכן...' : 'החלף סיסמה'}
+          </button>
+          
+          {pwdStatus && pwdStatus.type !== 'loading' && (
+            <div className={`mt-4 p-3 rounded-lg text-center font-medium text-sm ${pwdStatus.type === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
+              {pwdStatus.message}
+            </div>
+          )}
+        </form>
+      </div>
     </div>
   );
 }

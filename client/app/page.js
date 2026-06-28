@@ -6,13 +6,17 @@ import Dropzone from "../components/Dropzone";
 import ReportTable from "../components/ReportTable";
 import DashboardAnalytics from "../components/DashboardAnalytics";
 import MissingReceipts from "../components/MissingReceipts";
-import { LogOut, ShieldCheck, FileText, CheckCircle2, Settings } from "lucide-react";
+import { LogOut, ShieldCheck, FileText, CheckCircle2, Settings, Mail } from "lucide-react";
+import axios from "axios";
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
   const [analysisResult, setAnalysisResult] = useState(null);
   const [dashboardData, setDashboardData] = useState([]);
   const [showProfile, setShowProfile] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotStatus, setForgotStatus] = useState(null);
   
   // We can use a small state to trigger refresh in the ReportTable when a new file is uploaded
   const [uploadKey, setUploadKey] = useState(0);
@@ -45,8 +49,73 @@ export default function Dashboard() {
             >
               התחברות באמצעות אימייל וסיסמה
             </button>
+            <button 
+              onClick={() => setShowForgotPassword(true)}
+              className="mt-2 text-sm text-slate-500 hover:text-blue-600 font-medium transition-colors"
+            >
+              שכחת סיסמה?
+            </button>
           </div>
         </div>
+
+        {/* Forgot Password Modal */}
+        {showForgotPassword && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div dir="rtl" className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+              <button 
+                onClick={() => { setShowForgotPassword(false); setForgotStatus(null); setForgotEmail(""); }}
+                className="absolute top-4 left-4 text-slate-400 hover:text-slate-600"
+              >
+                ✕ סגור
+              </button>
+              
+              <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mb-6">
+                <Mail className="w-6 h-6 text-blue-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">איפוס סיסמה</h2>
+              <p className="text-slate-500 text-sm mb-6">הזן את כתובת האימייל שלך ונשלח אליך סיסמה זמנית חדשה.</p>
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                setForgotStatus({ type: 'loading', message: 'שולח...' });
+                try {
+                  const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/users/forgot-password`, { email: forgotEmail });
+                  if (res.data.success) {
+                    setForgotStatus({ type: 'success', message: 'אם המייל קיים במערכת, סיסמה זמנית נשלחה אליו.' });
+                  } else {
+                    setForgotStatus({ type: 'error', message: res.data.message || 'שגיאה באיפוס' });
+                  }
+                } catch (err) {
+                  setForgotStatus({ type: 'error', message: 'שגיאת שרת. אנא נסה שוב מאוחר יותר.' });
+                }
+              }}>
+                <input 
+                  type="email" 
+                  required
+                  placeholder="אימייל" 
+                  value={forgotEmail}
+                  onChange={e => setForgotEmail(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 outline-none focus:border-blue-500 focus:bg-white transition-colors mb-4 text-left"
+                  dir="ltr"
+                />
+                
+                <button 
+                  type="submit"
+                  disabled={forgotStatus?.type === 'loading'}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition-all disabled:opacity-70"
+                >
+                  {forgotStatus?.type === 'loading' ? 'מעבד...' : 'שלח סיסמה זמנית'}
+                </button>
+
+                {forgotStatus && forgotStatus.type !== 'loading' && (
+                  <div className={`mt-4 p-3 rounded-lg text-center font-medium text-sm ${forgotStatus.type === 'error' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'}`}>
+                    {forgotStatus.message}
+                  </div>
+                )}
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

@@ -51,6 +51,9 @@ const handler = NextAuth({
         if (userData.status === "Frozen") {
           return "/frozen"; // Redirect to a frozen page
         }
+        if (user.forcePasswordChange || userData.forcePasswordChange) {
+          return "/force-change-password?email=" + encodeURIComponent(user.email);
+        }
         if (userData.status === "Approved") {
           user.role = userData.role; // Attach role to user object
           return true;
