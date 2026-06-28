@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Users, LogOut, ShieldCheck, UserPlus, ShieldBan, Settings, Edit2, Trash2 } from "lucide-react";
 import EditUserModal from "../../components/EditUserModal";
 import BroadcastPanel from "../../components/BroadcastPanel";
+import AdminAnalytics from "../../components/AdminAnalytics";
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession();
@@ -159,6 +160,8 @@ export default function AdminDashboard() {
 
         <div className="space-y-6 max-w-6xl">
           
+          <AdminAnalytics adminEmail={session.user.email} />
+
           {/* Create User Card */}
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
             <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">

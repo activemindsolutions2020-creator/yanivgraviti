@@ -448,4 +448,69 @@ router.delete('/:targetEmail', async (req, res) => {
   }
 });
 
+// GET /api/users/stats - Get global stats for Admin Dashboard
+router.get('/stats', async (req, res) => {
+  try {
+    const { adminEmail } = req.query;
+    if (!adminEmail) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    const spreadsheetId = process.env.SPREADSHEET_ID;
+
+    // 1. Verify admin
+    const usersRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'Users!A:D' });
+    const usersRows = usersRes.data.values || [];
+    let isAdmin = false;
+    let totalUsers = 0;
+    
+    for (let i = 1; i < usersRows.length; i++) {
+      if (usersRows[i][0] === adminEmail && (usersRows[i][2] === 'Admin' || usersRows[i][2] === 'Manager') && usersRows[i][3] === 'Approved') {
+        isAdmin = true;
+      }
+      if (usersRows[i][3] === 'Approved') {
+        totalUsers++;
+      }
+    }
+
+    if (!isAdmin) return res.status(403).json({ success: false, message: 'Forbidden' });
+
+    // 2. Fetch Invoices for stats
+    const invRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'Invoices!A:I' });
+    const invRows = invRes.data.values || [];
+    
+    let totalInvoices = 0;
+    let totalExpenses = 0;
+    let totalIncomes = 0;
+
+    // Start from 1 to skip header
+    for (let i = 1; i < invRows.length; i++) {
+      const status = invRows[i][8] || '';
+      if (status !== 'מבוטל') {
+        totalInvoices++;
+        const type = invRows[i][6] || '';
+        const amount = parseFloat(invRows[i][4]) || 0;
+        
+        if (type === 'דיווח טלגרם - הוצאה') {
+          totalExpenses += amount;
+        } else if (type === 'דיווח טלגרם - הכנסה') {
+          totalIncomes += amount;
+        }
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        totalUsers,
+        totalInvoices,
+        totalExpenses,
+        totalIncomes
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching admin stats:', error);
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+
 export default router;
