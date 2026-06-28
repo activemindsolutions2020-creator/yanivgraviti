@@ -92,19 +92,19 @@ router.post("/", upload.single("invoiceFile"), async (req, res) => {
       `\nThe user has recently reported these expenses WITHOUT a receipt:\n${JSON.stringify(recentMissingReceipts)}\nIf you determine that the document you are analyzing is the receipt for one of these previously reported expenses (match by vendor, date, or amount), output its "matchedRowIndex". If you notice a discrepancy between the user's reported amount and the actual amount on the receipt, output a "correctionMessage" in Hebrew explaining the difference (e.g. "שמתי לב שדיווחת על 300 ₪, אבל בקבלה מופיע 250 ₪. רשמתי את הקבלה ככפולה לבדיקתך"). ALWAYS extract the ACTUAL correct amount from the receipt itself for "totalAmount".\n` : "";
 
     const docType = isInsolvency ? "insolvency document" : "financial document";
-    const prompt = `Analyze this ${docType} (invoice/receipt). The document might be in Hebrew or English and may contain MULTIPLE receipts or invoices.${missingReceiptsContext}
-Extract the details for EACH distinct receipt found and return ONLY a valid JSON ARRAY of objects. Each object must have these EXACT keys:
-- "type": (e.g. "Invoice", "Receipt", "חשבונית מס", "קבלה")
-- "vendor": (Name of the business/person who issued it, in Hebrew if possible)
-- "category": (MUST be ONE of the exact following official Israeli trustee report categories. For EXPENSES: "שכר דירה", "משכנתא", "מיסי עירייה", "כלכלה (מזון)", "טלפון, כבלים ואינטרנט", "טלפון נייד", "גז", "ועד בית", "מים", "חשמל", "תשלום חודשי לממונה", "הוצאות רפואיות", "נסיעות לעבודה", "טיפול בילדים", "תשלום מזונות", "נסיעות אחרות", "אחזקת רכב", "חינוך ותרבות", "הלבשה", "הוצאות נוספות". For INCOME: "משכורת נטו", "הכנסה מעסק", "פנסיה", "שכר דירה (הכנסה)", "קצבאות ביטוח לאומי", "מזונות (הכנסה)", "הכנסות נוספות". Do NOT invent new categories.)
-- "totalAmount": (Numeric value only, e.g. 150.50. IMPORTANT: Extract the GRAND TOTAL amount of the purchase. If there is a split payment, such as credit card + vouchers, make sure to return the full original total, not just the part paid by one specific method. If not found, use 0)
+    const prompt = `Analyze this ${docType} (invoice/receipt OR bank statement/credit card bill). The document might be in Hebrew or English and may contain MULTIPLE receipts or a TABLE of transactions (bank/credit card statement).${missingReceiptsContext}
+Extract the details for EACH distinct receipt OR EACH TRANSACTION ROW found and return ONLY a valid JSON ARRAY of objects. Each object must have these EXACT keys:
+- "type": (MUST be "דיווח טלגרם - הוצאה" for expenses/payments/charges, OR "דיווח טלגרם - הכנסה" for incomes/refunds/deposits. If it's a receipt, it's usually an expense. If it's a bank statement, check the column or sign to determine income vs expense. Ignore balance transfers between own accounts if identifiable.)
+- "vendor": (Name of the business/person who issued it, in Hebrew if possible. For bank rows, use the description/payee name.)
+- "category": (MUST be ONE of the exact following official Israeli trustee report categories. For EXPENSES: "שכר דירה", "משכנתא", "מיסי עירייה", "כלכלה (מזון)", "טלפון, כבלים ואינטרנט", "טלפון נייד", "גז", "ועד בית", "מים", "חשמל", "תשלום חודשי לממונה", "הוצאות רפואיות", "נסיעות לעבודה", "טיפול בילדים", "תשלום מזונות", "נסיעות אחרות", "אחזקת רכב", "חינוך ותרבות", "הלבשה", "הוצאות נוספות". For INCOME: "משכורת נטו", "הכנסה מעסק", "פנסיה", "שכר דירה (הכנסה)", "קצבאות ביטוח לאומי", "מזונות (הכנסה)", "הכנסות נוספות". Do NOT invent new categories. Map appropriately based on the vendor.)
+- "totalAmount": (Numeric value only, e.g. 150.50. IMPORTANT: ALWAYS return the ABSOLUTE POSITIVE VALUE. Do not include negative signs, even for refunds. Extract the GRAND TOTAL amount. If not found, use 0)
 - "currency": (e.g. "ILS", "USD", "EUR")
 - "date": (Format as DD/MM/YYYY if possible, or extract as written)
-- "pageNumber": (The page number in the PDF where this specific receipt is located. 1-indexed. e.g., 1, 2, 3... If it's an image, just return 1)
+- "pageNumber": (The page number in the PDF where this specific receipt/row is located. 1-indexed. e.g., 1, 2, 3... If it's an image, just return 1)
 - "matchedRowIndex": (If this receipt matches one of the missing receipts above, output its rowIndex. Otherwise null)
 - "correctionMessage": (If it matched a row but the amounts are different, output a friendly Hebrew warning. Otherwise null)
 
-If there is only one receipt, return an array with one object. If you cannot find a specific field, do your best to infer it from the context or leave it as "Unknown". Do not return an empty array. ONLY return the raw JSON array without markdown formatting.`;
+If there is only one receipt, return an array with one object. If there are dozens of rows in a bank statement, return an array with an object for EACH row. If you cannot find a specific field, do your best to infer it from the context or leave it as "Unknown". Do not return an empty array. ONLY return the raw JSON array without markdown formatting.`;
     let mimeType = file.mimetype;
     // Force application/pdf if the file name indicates it's a PDF, 
     // because Windows sometimes uploads PDFs as application/octet-stream

@@ -183,30 +183,42 @@ export const initTelegramBot = () => {
 
       if (apiRes.data.success) {
         const results = apiRes.data.data || apiRes.data.results || [];
-        let replyMsg = "✅ *פענוח הושלם בהצלחה!*\n\n";
-        let hasCorrection = false;
         
-        results.forEach(res => {
-           // Handle both old and new response formats
-           const data = res.extractedData || res;
+        if (results.length > 3) {
+           let totalSum = 0;
+           results.forEach(res => {
+              const data = res.extractedData || res;
+              totalSum += parseFloat(data.TotalAmount !== undefined ? data.TotalAmount : (data.totalAmount || 0));
+           });
            
-           if (data.correctionMessage) {
-             hasCorrection = true;
-             replyMsg += `⚠️ *שים לב:* ${data.correctionMessage}\n\n`;
-           }
-           
-           replyMsg += `📄 *${data.ExpenseName || data.vendor || 'הוצאה כללית'}*\n`;
-           replyMsg += `💰 סכום: ₪${data.TotalAmount !== undefined ? data.TotalAmount : (data.totalAmount || 0)}\n`;
-           replyMsg += `📅 תאריך: ${data.Date || data.date || 'לא זוהה'}\n`;
-           replyMsg += `🏷️ קטגוריה: ${data.Category || data.category || 'אחר'}\n\n`;
-        });
-        
-        if (!hasCorrection) {
-          replyMsg += "📊 הנתונים נשמרו בהצלחה במערכת!";
+           let replyMsg = `✅ *${results.length} תנועות זוהו בהצלחה מפירוט האשראי/הבנק, בסך כולל של ₪${totalSum.toLocaleString()}*.\nהכל עודכן במערכת!`;
+           bot.sendMessage(chatId, replyMsg, { parse_mode: 'Markdown' });
         } else {
-          replyMsg += "החשבונית נשמרה בסטטוס כפול לבדיקתך בדשבורד.";
+           let replyMsg = "✅ *פענוח הושלם בהצלחה!*\n\n";
+           let hasCorrection = false;
+           
+           results.forEach(res => {
+              // Handle both old and new response formats
+              const data = res.extractedData || res;
+              
+              if (data.correctionMessage) {
+                hasCorrection = true;
+                replyMsg += `⚠️ *שים לב:* ${data.correctionMessage}\n\n`;
+              }
+              
+              replyMsg += `📄 *${data.ExpenseName || data.vendor || 'הוצאה כללית'}*\n`;
+              replyMsg += `💰 סכום: ₪${data.TotalAmount !== undefined ? data.TotalAmount : (data.totalAmount || 0)}\n`;
+              replyMsg += `📅 תאריך: ${data.Date || data.date || 'לא זוהה'}\n`;
+              replyMsg += `🏷️ קטגוריה: ${data.Category || data.category || 'אחר'}\n\n`;
+           });
+           
+           if (!hasCorrection) {
+             replyMsg += "📊 הנתונים נשמרו בהצלחה במערכת!";
+           } else {
+             replyMsg += "החשבונית נשמרה בסטטוס כפול לבדיקתך בדשבורד.";
+           }
+           bot.sendMessage(chatId, replyMsg, { parse_mode: 'Markdown' });
         }
-        bot.sendMessage(chatId, replyMsg, { parse_mode: 'Markdown' });
       } else {
         bot.sendMessage(chatId, "❌ ה-AI לא הצליח לפענח את הקבלה.");
       }
