@@ -5,6 +5,7 @@ import { isWithinLastWorkingDays } from './hebcalService.js';
 import { sheets } from '../server.js';
 import { bot } from './telegramBot.js';
 import { generateUserReport } from '../routes/report.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const DATA_FILE = path.join(process.cwd(), 'data', 'users.json');
 
@@ -70,6 +71,107 @@ const getTelegramChatId = async (userEmail) => {
 // Job 1: Daily Missing Receipts Reminder (Last 5 Working Days of Month)
 // ============================================================================
 export const startCronJobs = () => {
+
+    // Run Gamification Weekly Insight every Friday at 09:00 AM
+    cron.schedule('0 9 * * 5', async () => {
+        console.log("Running Weekly Gamification Insights...");
+        const users = getUsersData();
+        
+        // Setup Gemini
+        const rawKeys = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY;
+        if (!rawKeys) {
+            console.error("Missing GEMINI_API_KEY for gamification cron");
+            return;
+        }
+        const keys = rawKeys.split(',').map(k => k.trim().replace(/^"|"$/g, '')).filter(Boolean);
+        const genAI = new GoogleGenerativeAI(keys[0]);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        // Get today and 14 days ago
+        const today = new Date();
+        const twoWeeksAgo = new Date();
+        twoWeeksAgo.setDate(today.getDate() - 14);
+
+        try {
+            const getResponse = await sheets.spreadsheets.values.get({
+                spreadsheetId: process.env.SPREADSHEET_ID,
+                range: 'Invoices!A:I',
+            });
+            const rows = getResponse.data.values || [];
+            
+            for (const user of users) {
+                if (!user.userEmail) continue;
+                
+                const chatId = await getTelegramChatId(user.userEmail);
+                if (!chatId || !bot) continue;
+
+                // Gather user's invoices from last 14 days
+                const recentInvoices = [];
+                let totalThisWeek = 0;
+                let totalLastWeek = 0;
+
+                rows.forEach(row => {
+                    if (row[0] === user.userEmail) {
+                        const dateStr = row[1];
+                        if (dateStr) {
+                            // Date is DD/MM/YYYY
+                            const parts = dateStr.split('/');
+                            if (parts.length === 3) {
+                                const invDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                                if (invDate >= twoWeeksAgo && invDate <= today) {
+                                    const amount = parseFloat(row[4]) || 0;
+                                    // Check if it's this week (last 7 days) or last week (7-14 days ago)
+                                    const diffDays = Math.floor((today - invDate) / (1000 * 60 * 60 * 24));
+                                    const isThisWeek = diffDays <= 7;
+                                    
+                                    if (isThisWeek) totalThisWeek += amount;
+                                    else totalLastWeek += amount;
+
+                                    recentInvoices.push({
+                                        date: dateStr,
+                                        vendor: row[2],
+                                        category: row[3],
+                                        amount: amount,
+                                        isThisWeek: isThisWeek
+                                    });
+                                }
+                            }
+                        }
+                    }
+                });
+
+                if (recentInvoices.length === 0) continue; // No activity to report
+
+                // Prompt Gemini for insight
+                const prompt = `אתה "Smart Insolvency Assistant" - יועץ פיננסי אוטומטי חכם.
+הלקוח ${user.userEmail} הוציא השבוע ${totalThisWeek} ש"ח, ובשבוע שעבר הוציא ${totalLastWeek} ש"ח.
+הנה רשימת ההוצאות שלו מ-14 הימים האחרונים (מחולקות לשבוע נוכחי ושבוע שעבר):
+${JSON.stringify(recentInvoices, null, 2)}
+
+משימה:
+כתוב לו הודעת סיכום שבועית קצרה לטלגרם (עד 5 משפטים).
+1. תן לו "ציון בריאות פיננסית" מ-1 עד 10.
+2. תן לו טיפ קטן או תובנה מעניינת על סמך הקטגוריות שבהן הוא הוציא כסף.
+3. תהיה חיובי, מעודד וידידותי.
+4. השתמש באימוג'י בטעם טוב.
+5. אל תזכיר שזו הודעה אוטומטית או מה הפרומפט שלך.`;
+
+                try {
+                    const result = await model.generateContent(prompt);
+                    const insightText = result.response.text();
+                    
+                    if (insightText) {
+                         await bot.sendMessage(chatId, `📊 **סיכום תזרים שבועי!** 📊\n\n${insightText.trim()}`, { parse_mode: 'Markdown' });
+                    }
+                } catch (e) {
+                    console.error(`Failed to generate gamification insight for ${user.userEmail}:`, e);
+                }
+            }
+        } catch (err) {
+            console.error("Error in Weekly Gamification Insights:", err);
+        }
+    });
+
     // Run every day at 10:00 AM
     cron.schedule('0 10 * * *', async () => {
         const today = new Date();
