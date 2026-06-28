@@ -466,6 +466,7 @@ export const initTelegramBot = () => {
       let foundRowIndex = -1;
       let foundEmail = "";
       let foundName = "";
+      let foundPhone = "";
       
       for (let i = 1; i < rows.length; i++) {
         const rowEmail = (rows[i][0] || "").toLowerCase();
@@ -475,6 +476,7 @@ export const initTelegramBot = () => {
           foundRowIndex = i;
           foundEmail = rows[i][0];
           foundName = rows[i][1];
+          foundPhone = rows[i][7] || "לא סופק";
           break;
         }
       }
@@ -491,7 +493,7 @@ export const initTelegramBot = () => {
          name: foundName
       };
       
-      bot.sendMessage(chatId, `מצאתי את המשתמש:\nשם: ${foundName}\nמייל: ${foundEmail}\n\nהאם אתה בטוח שברצונך ${actionText} את המשתמש?\nהשב 'כן' לאישור או 'לא' לביטול.`);
+      bot.sendMessage(chatId, `מצאתי את המשתמש:\nשם: ${foundName}\nמייל: ${foundEmail}\nטלפון: ${foundPhone}\n\nהאם אתה בטוח שברצונך ${actionText} את המשתמש?\nהשב 'כן' לאישור או 'לא' לביטול.`);
       
     } catch(e) {
       bot.sendMessage(chatId, "❌ שגיאה בחיפוש המשתמש: " + e.message);
