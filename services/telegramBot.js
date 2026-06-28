@@ -332,7 +332,7 @@ export const initTelegramBot = () => {
   // Helper for admin user creation
   const handleUserCreation = async (chatId, text) => {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-    const dataLines = lines.filter(l => l !== 'הקמה' && !l.includes('מנהל משרד') && !l.includes('חדלות פירעון'));
+    const dataLines = lines.filter(l => !l.startsWith('הקמה') && !l.startsWith('הקם משתמש') && !l.includes('מנהל משרד') && !l.includes('חדלות פירעון'));
     
     if (dataLines.length < 3) {
       return bot.sendMessage(chatId, "חסרים פרטים. אנא שלח: שם מלא, מייל, טלפון.");
@@ -594,21 +594,24 @@ export const initTelegramBot = () => {
            return bot.sendMessage(chatId, "מה תרצה לשלוח? (אפשר לשלוח טקסט, תמונה, מסמך או קול - וההודעה תועתק כפי שהיא לכולם)");
        }
        
-       if (msg.text === 'הקפא משתמש') {
-           adminStates[chatId] = 'WAITING_FOR_USER_ID_FREEZE';
-           return bot.sendMessage(chatId, "אנא שלח לי את המייל או מספר הטלפון של המשתמש שברצונך להקפיא:");
+       if (msg.text && (msg.text.startsWith('הקפא משתמש') || msg.text.startsWith('מחק משתמש'))) {
+           const actionType = msg.text.startsWith('מחק משתמש') ? 'delete' : 'freeze';
+           const parts = msg.text.split(/[\s\n]+/).filter(Boolean);
+           if (parts.length > 2) {
+               // The user provided the identifier inline
+               const identifier = parts.slice(2).join(' ');
+               return handleUserSearchForAction(chatId, identifier, actionType);
+           } else {
+               adminStates[chatId] = actionType === 'delete' ? 'WAITING_FOR_USER_ID_DELETE' : 'WAITING_FOR_USER_ID_FREEZE';
+               return bot.sendMessage(chatId, `אנא שלח לי את המייל או מספר הטלפון של המשתמש שברצונך ${actionType === 'delete' ? 'למחוק לחלוטין' : 'להקפיא'}:`);
+           }
        }
        
-       if (msg.text === 'מחק משתמש') {
-           adminStates[chatId] = 'WAITING_FOR_USER_ID_DELETE';
-           return bot.sendMessage(chatId, "אנא שלח לי את המייל או מספר הטלפון של המשתמש שברצונך למחוק לחלוטין:");
-       }
-       
-       if (msg.text && msg.text.startsWith('הקמה')) {
+       if (msg.text && (msg.text.startsWith('הקמה') || msg.text.startsWith('הקם משתמש'))) {
            const lines = msg.text.split('\n').map(l => l.trim()).filter(Boolean);
            if (lines.length === 1) {
                adminStates[chatId] = 'WAITING_FOR_USER_DETAILS';
-               return bot.sendMessage(chatId, "אנא שלח את פרטי המשתמש בשורות נפרדות:\nשם מלא\nמייל\nטלפון\n(אם זה משרד עורכי דין, הוסף 'מנהל משרד' בשורה רביעית)");
+               return bot.sendMessage(chatId, "אנא שלח את פרטי המשתמש בשורות נפרדות:\nשם מלא\nמייל\nטלפון\n(אם זה משרד עורכי דין, הוסף 'מנהל משרד' בשורה רביעית)\n(ללקוח חדלות פירעון הוסף 'חדלות פירעון')");
            } else {
                return handleUserCreation(chatId, msg.text);
            }
