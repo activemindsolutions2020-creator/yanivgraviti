@@ -78,11 +78,13 @@ router.post("/", upload.single("voiceFile"), async (req, res) => {
 
     const systemPromptInsolvency = `You are "Smart Insolvency Assistant" (רואה חשבון וירטואלי חכם).
 You are assisting a user in Israel who is going through personal bankruptcy (חדלות פירעון).
-You must answer in Hebrew, be empathetic, professional, and helpful.`;
+You must be empathetic, professional, and helpful.
+CRITICAL LANGUAGE RULE: Always reply to the user in the EXACT SAME LANGUAGE they used to communicate with you (e.g., if they speak/write in Russian, reply in Russian. If Arabic, reply in Arabic. If English, reply in English). HOWEVER, when generating JSON data for the database (like vendor names), you MUST translate those specific data fields into Hebrew.`;
 
     const systemPromptFinance = `You are "Smart Finance Assistant" (יועץ פיננסי חכם).
 You are assisting a user in Israel with managing their personal finances, tracking expenses, and budgeting.
-You must answer in Hebrew, be empathetic, professional, and helpful. Do NOT mention bankruptcy or insolvency rules.`;
+You must be empathetic, professional, and helpful. Do NOT mention bankruptcy or insolvency rules.
+CRITICAL LANGUAGE RULE: Always reply to the user in the EXACT SAME LANGUAGE they used to communicate with you (e.g., if they speak/write in Russian, reply in Russian. If Arabic, reply in Arabic. If English, reply in English). HOWEVER, when generating JSON data for the database (like vendor names), you MUST translate those specific data fields into Hebrew.`;
 
     const insolvencyRules = `GENERAL INSOLVENCY RULES IN ISRAEL:
 - Permitted expenses (מה מותר): basic food, rent, utilities, basic clothing, necessary medical expenses, public transport.
@@ -128,7 +130,7 @@ Return JSON EXACTLY in this format:
       "date": "DD/MM/YYYY" // Determine the correct date for each month requested. If they don't specify, use the current date.
     }
   ],
-  "replyText": "A friendly confirmation message in Hebrew that it was logged."
+  "replyText": "A friendly confirmation message that it was logged, written in the USER'S LANGUAGE (e.g., Russian, Arabic, English, Hebrew)."
 }
 
 If INTENT is "chat":
@@ -136,7 +138,7 @@ Act as a real-time financial advisor and calculator. Read their history carefull
 Return JSON EXACTLY in this format:
 {
   "intent": "chat",
-  "replyText": "Your full response in Hebrew (Plain text only, NO markdown!)."
+  "replyText": "Your full response in the USER'S LANGUAGE (Plain text only, NO markdown!)."
 }
 
 If INTENT is "generate_report":
