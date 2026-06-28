@@ -16,6 +16,7 @@ const normalizePhone = (phone) => {
 
 export let bot;
 const adminStates = {}; // Add admin state tracking
+const registrationStates = {}; // Add registration state tracking
 
 export const initTelegramBot = () => {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -146,7 +147,8 @@ export const initTelegramBot = () => {
             reply_markup: { remove_keyboard: true }
           });
         } else {
-          bot.sendMessage(chatId, `❌ מצטער, לא מצאתי את המספר שלך (${contactPhone}) במערכת.\nאנא בקש ממנהל המערכת להוסיף את מספר הטלפון שלך לפרופיל ונסה שוב.`, {
+          registrationStates[chatId] = { step: 'WAITING_FOR_NAME', phone: contactPhone };
+          bot.sendMessage(chatId, `לא זיהינו את המספר שלך במערכת. ברוך הבא ל-Smart Insolvency! 🎉\nנשמח לרשום אותך במהירות.\n\nאיך קוראים לך? (אנא הקלד את שמך המלא)`, {
             reply_markup: { remove_keyboard: true }
           });
         }
@@ -559,6 +561,36 @@ export const initTelegramBot = () => {
     if (msg.contact || msg.text === '/start') return; // Handled separately
     
     const chatId = msg.chat.id;
+
+    // Check for registration state
+    const regState = registrationStates[chatId];
+    if (regState) {
+      if (regState.step === 'WAITING_FOR_NAME' && msg.text) {
+        regState.name = msg.text.trim();
+        regState.step = 'WAITING_FOR_EMAIL';
+        return bot.sendMessage(chatId, `תודה רבה ${regState.name}! כעת, אנא הקלד את כתובת המייל שלך:`);
+      }
+      if (regState.step === 'WAITING_FOR_EMAIL' && msg.text) {
+        const email = msg.text.trim();
+        if (!email.includes('@')) {
+          return bot.sendMessage(chatId, `כתובת המייל נראית לא תקינה. אנא נסה שוב:`);
+        }
+        regState.email = email;
+        regState.step = 'WAITING_FOR_PATH';
+        return bot.sendMessage(chatId, `מעולה. באיזה מסלול תרצה לבחור?`, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: 'ניהול פיננסי חכם', callback_data: 'reg_path_regular' }],
+              [{ text: 'הליך חדלות פירעון', callback_data: 'reg_path_insolvency' }]
+            ]
+          }
+        });
+      }
+      if (regState.step === 'WAITING_FOR_PATH') {
+         return bot.sendMessage(chatId, `אנא בחר מסלול מהכפתורים שבהודעה הקודמת 👆`);
+      }
+    }
+    
     const user = await getUserByChatId(chatId);
     
     // Check if user is the main admin (Yaniv) or has Admin role in DB
@@ -630,6 +662,61 @@ export const initTelegramBot = () => {
     }
     if (msg.voice || msg.text) {
        return handleChat(msg);
+    }
+  });
+
+  bot.on('callback_query', async (query) => {
+    const chatId = query.message.chat.id;
+    const data = query.data;
+    const regState = registrationStates[chatId];
+    
+    if (regState && regState.step === 'WAITING_FOR_PATH' && data.startsWith('reg_path_')) {
+      const isInsolvency = data === 'reg_path_insolvency';
+      bot.answerCallbackQuery(query.id);
+      bot.sendMessage(chatId, "מעבד את הנתונים ומקים את החשבון... ⏳");
+      
+      try {
+        const spreadsheetId = process.env.SPREADSHEET_ID;
+        const createdAt = new Date().toISOString();
+        const encryptedPassword = encryptData(regState.phone);
+        await sheets.spreadsheets.values.append({
+          spreadsheetId,
+          range: 'Users!A:K',
+          valueInputOption: 'USER_ENTERED',
+          insertDataOption: 'INSERT_ROWS',
+          requestBody: {
+            values: [[regState.email, regState.name, 'User', 'Approved', createdAt, encryptedPassword, 'Self-Registered', regState.phone, String(chatId), '25', '']]
+          }
+        });
+
+        // Update users.json with insolvency status
+        try {
+          const DATA_FILE = path.join(process.cwd(), 'data', 'users.json');
+          if (!fs.existsSync(path.join(process.cwd(), 'data'))) {
+            fs.mkdirSync(path.join(process.cwd(), 'data'));
+          }
+          let users = [];
+          if (fs.existsSync(DATA_FILE)) {
+            users = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+          }
+          const userIndex = users.findIndex(u => u.userEmail === regState.email);
+          if (userIndex > -1) {
+            users[userIndex].isInsolvency = isInsolvency;
+          } else {
+            users.push({ userEmail: regState.email, isInsolvency: isInsolvency });
+          }
+          fs.writeFileSync(DATA_FILE, JSON.stringify(users, null, 2));
+        } catch (e) {
+          console.error("Failed to update users.json for insolvency flag:", e);
+        }
+
+        delete registrationStates[chatId];
+        
+        bot.sendMessage(chatId, `✅ ההרשמה הושלמה בהצלחה!\nברוך הבא ל-Smart Insolvency, ${regState.name}.\n\nהחשבון שלך הוקם ואתה יכול להתחיל להשתמש בבוט מיד.\n\nמה אפשר לעשות עכשיו?\n📸 צלם ושלח חשבונית\n🎙️ שלח הקלטה קולית עם פירוט הוצאה\n💬 שאל אותי שאלות על התזרים שלך\n\nקישור למערכת האתר: https://yanivgraviti.vercel.app`);
+      } catch (err) {
+        console.error("Registration error:", err);
+        bot.sendMessage(chatId, "אירעה שגיאה בעת שמירת הנתונים. אנא פנה לתמיכה.");
+      }
     }
   });
 

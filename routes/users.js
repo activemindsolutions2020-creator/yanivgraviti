@@ -97,7 +97,7 @@ router.post('/auth', async (req, res) => {
       email,
       name: name || email,
       role: isMainAdmin ? 'Admin' : 'User',
-      status: isMainAdmin ? 'Approved' : 'Pending',
+      status: 'Approved', // Auto-approve all new users
       createdAt: new Date().toISOString(),
       reminderDay: "25",
       reminderMessage: ""
