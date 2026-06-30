@@ -2,6 +2,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import puppeteer from 'puppeteer';
+import axios from 'axios';
 import { sheets } from '../server.js';
 
 const router = express.Router();
@@ -145,10 +146,31 @@ export const generateUserReport = async (userEmail, targetMonthYear = null) => {
                  </div>
               `;
           } else {
+              let base64Image = invoice.fileUrl;
+              let imgSuccess = false;
+              let imgAttempt = 0;
+              while (!imgSuccess && imgAttempt < 30) {
+                 imgAttempt++;
+                 try {
+                    const res = await axios.get(invoice.fileUrl, { responseType: 'arraybuffer', timeout: 15000 });
+                    const base64 = Buffer.from(res.data, 'binary').toString('base64');
+                    const contentType = res.headers['content-type'] || 'image/jpeg';
+                    base64Image = `data:${contentType};base64,${base64}`;
+                    imgSuccess = true;
+                 } catch (e) {
+                    console.warn(`Failed to download image ${invoice.fileUrl} on attempt ${imgAttempt}, retrying...`);
+                    if (e.response && (e.response.status === 404 || e.response.status === 403)) {
+                       imgSuccess = true; // Stop retrying on permanent errors
+                    } else {
+                       await new Promise(resolve => setTimeout(resolve, 3000));
+                    }
+                 }
+              }
+
               imagesHtml += `
                  <div class="receipt">
                     <p><strong>${invoice.vendor}</strong> - ${invoice.date}</p>
-                    <img src="${invoice.fileUrl}" alt="Receipt for ${invoice.vendor}">
+                    <img src="${base64Image}" alt="Receipt for ${invoice.vendor}">
                  </div>
               `;
           }
@@ -221,26 +243,35 @@ export const generateUserReport = async (userEmail, targetMonthYear = null) => {
     </html>
     `;
 
-    let browser;
-    try {
-      browser = await puppeteer.launch({ 
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-      });
-      const page = await browser.newPage();
-      
-      // Increase timeout for large reports and use networkidle2 to prevent hanging on external assets
-      await page.setContent(htmlContent, { waitUntil: 'networkidle2', timeout: 60000 });
-      await page.pdf({ 
-         path: filePath, 
-         format: 'A4', 
-         printBackground: true,
-         timeout: 60000,
-         margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' }
-      });
-    } finally {
-      if (browser) {
-        await browser.close();
+    let success = false;
+    let attempt = 0;
+    while (!success && attempt < 10) {
+      attempt++;
+      let browser;
+      try {
+        browser = await puppeteer.launch({ 
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+        });
+        const page = await browser.newPage();
+        
+        await page.setContent(htmlContent, { waitUntil: 'networkidle0', timeout: 60000 });
+
+        await page.pdf({ 
+           path: filePath, 
+           format: 'A4', 
+           printBackground: true,
+           timeout: 120000,
+           margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' }
+        });
+        success = true;
+      } catch (e) {
+        console.warn(`puppeteer timeout or error on attempt ${attempt}, retrying...`, e.message);
+        if (attempt >= 10) throw e;
+      } finally {
+        if (browser) {
+          await browser.close();
+        }
       }
     }
 
